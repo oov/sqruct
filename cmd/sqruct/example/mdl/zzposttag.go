@@ -49,7 +49,7 @@ func (t *PostTag) GetTag(e sqlx.Ext) (*Tag, error) {
 
 func (t *PostTag) Insert(e sqlx.Ext) error {
 
-	r, err := sqlx.NamedExec(e, sqruct.BuildInsertQuery(
+	_, err := sqlx.NamedExec(e, sqruct.BuildInsertQuery(
 		"posttag",
 		[]string{"postid", "tagid"},
 		[]bool{true, true},

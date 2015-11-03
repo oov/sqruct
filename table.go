@@ -80,6 +80,16 @@ loop:
 	return r
 }
 
+// AutoIncrementColumn returns column which has auto increment constraint.
+func (t *Table) AutoIncrementColumn() *Column {
+	for _, col := range t.Column {
+		if col.AutoIncrement() {
+			return col
+		}
+	}
+	return nil
+}
+
 // PackageName returns package name in Go.
 func (t *Table) PackageName() string {
 	return t.parent.Config.Package
