@@ -1,0 +1,31 @@
+User:
+  ID: int64 | INTEGER PRIMARY KEY AUTOINCREMENT
+  Name: string | VARCHAR(30) NOT NULL UNIQUE
+
+Post:
+  ID: int64 | INTEGER PRIMARY KEY
+  UserID: int64 | INTEGER NOT NULL
+  At: time.Time | DATETIME NOT NULL
+  Message: string | VARCHAR(8125) NOT NULL
+  .after: FOREIGN KEY (userid) REFERENCES user(id) ON DELETE CASCADE
+
+Tag:
+  ID: int64 | INTEGER PRIMARY KEY
+  Name: string | VARCHAR(30) NOT NULL UNIQUE
+
+PostTag:
+  PostID: int64 | INTEGER NOT NULL
+  TagID: int64 | INTEGER NOT NULL
+  .after:
+    - FOREIGN KEY (postid) REFERENCES post(id) ON DELETE CASCADE
+    - FOREIGN KEY (tagid) REFERENCES tag(id) ON DELETE CASCADE
+    - PRIMARY KEY (postid, tagid)
+
+.config:
+  # you can use "MySQL" or "PostgreSQL" or "SQLite"
+  mode: SQLite
+  package: mdl
+  tag: mdl
+  dir: mdl/
+
+
