@@ -94,9 +94,9 @@ func (c *Column) Unique() bool {
 // AutoIncrement reports whether this column has auto increment constraint.
 func (c *Column) AutoIncrement() bool {
 	r := map[string]string{
-		"mysql":      `(?i)\S+\s+AUTO_?INCREMENT`,
-		"postgresql": `(?i)\S+\s+SERIAL|\S+\s+DEFAULT\s+nextval`,
-		"sqlite":     `(?i)\S+\s+AUTO_?INCREMENT|INTEGER\s+PRIMARY\s+KEY`,
+		"mysql":    `(?i)\S+\s+AUTO_?INCREMENT`,
+		"postgres": `(?i)(?:BIG)?SERIAL|\S+\s+DEFAULT\s+nextval`,
+		"sqlite":   `(?i)\S+\s+AUTO_?INCREMENT|INTEGER\s+PRIMARY\s+KEY`,
 	}
 	return regexp.MustCompile(r[c.parent.parent.Config.Mode]).MatchString(c.SQLColumn)
 }

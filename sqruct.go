@@ -71,7 +71,7 @@ func (sq *Sqruct) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		case "mysql":
 			sq.Config.Mode = "mysql"
 		case "postgresql", "postgres":
-			sq.Config.Mode = "mysql"
+			sq.Config.Mode = "postgres"
 		case "sqlite", "sqlite2", "sqlite3":
 			sq.Config.Mode = "sqlite"
 		default:
