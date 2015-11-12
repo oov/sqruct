@@ -12,16 +12,16 @@ func TestBuildInsertQuery(t *testing.T) {
 		Use     []bool
 	}{
 		{
-			Output:  "INSERT INTO hello (column1, column2, column3) VALUES (:column1, :column2, NULL)",
+			Output:  "INSERT INTO hello (column1, column2) VALUES (:column1, :column2)",
 			Table:   "hello",
 			Columns: []string{"column1", "column2", "column3"},
 			Use:     []bool{true, true, false},
 		},
 		{
-			Output:  "INSERT INTO h (c1, c2, c3) VALUES (:c1, :c2, NULL)",
+			Output:  "INSERT INTO h (c2, c3) VALUES (:c2, :c3)",
 			Table:   "h",
 			Columns: []string{"c1", "c2", "c3"},
-			Use:     []bool{true, true, false},
+			Use:     []bool{false, true, true},
 		},
 	}
 	for i, v := range datas {

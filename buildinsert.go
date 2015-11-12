@@ -1,6 +1,6 @@
 package sqruct
 
-// BuildInsertQuery builds SQL such as "INSERT INTO table (column1, column2) VALUES (:column1, NULL)".
+// BuildInsertQuery builds SQL such as "INSERT INTO table (column1, column2) VALUES (:column1, :column2)".
 func BuildInsertQuery(table string, columns []string, useStructValue []bool) string {
 	if len(columns) != len(useStructValue) {
 		panic("whoooo")
@@ -30,23 +30,29 @@ func BuildInsertQuery(table string, columns []string, useStructValue []bool) str
 	q = append(q, "INSERT INTO "...)
 	q = append(q, table...)
 	q = append(q, " ("...)
-	for i, c := range columns {
+	i := 0
+	for j, c := range columns {
+		if !useStructValue[j] {
+			continue
+		}
 		if i != 0 {
 			q = append(q, ", "...)
 		}
 		q = append(q, c...)
+		i++
 	}
 	q = append(q, ") VALUES ("...)
-	for i, c := range columns {
+	i = 0
+	for j, c := range columns {
+		if !useStructValue[j] {
+			continue
+		}
 		if i != 0 {
 			q = append(q, ", "...)
 		}
-		if useStructValue[i] {
-			q = append(q, ':')
-			q = append(q, c...)
-		} else {
-			q = append(q, "NULL"...)
-		}
+		q = append(q, ':')
+		q = append(q, c...)
+		i++
 	}
 	q = append(q, ')')
 
