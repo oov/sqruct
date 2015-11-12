@@ -13,7 +13,7 @@ import (
 
 // Config represents Sqruct configuration.
 type Config struct {
-	Mode    string // Processing mode, such as "sqlite".
+	Mode    Mode   // Processing mode, such as "sqlite".
 	Package string // Package name in source code in Go.
 	Tag     string // Tag name in struct definition in Go.
 	Dir     string // Source code output directory.
@@ -62,20 +62,25 @@ func (sq *Sqruct) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// load config
 	{
 		var t struct {
-			C Config `yaml:".config"`
+			C struct {
+				Mode    string
+				Package string
+				Tag     string
+				Dir     string
+			} `yaml:".config"`
 		}
 		if err = unmarshal(&t); err != nil {
 			return err
 		}
 		switch strings.ToLower(strings.TrimSpace(t.C.Mode)) {
 		case "mysql":
-			sq.Config.Mode = "mysql"
+			sq.Config.Mode = MySQL{}
 		case "postgresql", "postgres":
-			sq.Config.Mode = "postgres"
-		case "sqlite", "sqlite2", "sqlite3":
-			sq.Config.Mode = "sqlite"
+			sq.Config.Mode = PostgreSQL{}
+		case "sqlite", "sqlite3":
+			sq.Config.Mode = SQLite{}
 		default:
-			sq.Config.Mode = "sqlite"
+			return fmt.Errorf("sqruct: could not detect mode: %q", t.C.Mode)
 		}
 		sq.Config.Package = strings.ToLower(strings.TrimSpace(t.C.Package))
 		if sq.Config.Package == "" {

@@ -100,6 +100,11 @@ func (t *Table) SQLName() string {
 	return strings.ToLower(t.GoName)
 }
 
+// Mode returns current database mode.
+func (t *Table) Mode() Mode {
+	return t.parent.Config.Mode
+}
+
 // OmitMethod reports whether methodName is omitted in Go source.
 func (t *Table) OmitMethod(methodName string) bool {
 	_, ok := t.omitMethod[methodName]

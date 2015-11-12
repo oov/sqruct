@@ -1,28 +1,20 @@
 package sqruct
 
-// BuildInsertQuery builds SQL such as "INSERT INTO table (column1, column2) VALUES (:column1, :column2)".
-func BuildInsertQuery(table string, columns []string, useStructValue []bool) string {
-	if len(columns) != len(useStructValue) {
-		panic("whoooo")
-	}
-
+// buildInsert builds SQL such as "INSERT INTO table (column1, column2) VALUES (:column1, :column2)".
+func buildInsert(table string, columns []string, autoIncrCol int, defValue string, useReturning bool) string {
 	// calculate max length
 	l := len("INSERT INTO  () VALUES ()") + len(table)
 	for i, c := range columns {
-		// for columns
 		if i != 0 {
-			l += 2 // len(", ")
+			l += 4 // len(", ") for columns + values
 		}
-		l += len(c)
-
-		// for values
-		if i != 0 {
-			l += 2 // len(", ")
-		}
-		if useStructValue[i] {
-			l += len(c) + 1 // len(":"+c)
+		if i == autoIncrCol {
+			l += len(c) + len(defValue) // len(c) for columns + len(defValue) for values
+			if useReturning {
+				l += 11 + len(c) // len(" RETURNING "+c)
+			}
 		} else {
-			l += 4 // len("NULL")
+			l += len(c)*2 + 1 // len(c) for columns + len(":"+c) for values
 		}
 	}
 
@@ -30,31 +22,29 @@ func BuildInsertQuery(table string, columns []string, useStructValue []bool) str
 	q = append(q, "INSERT INTO "...)
 	q = append(q, table...)
 	q = append(q, " ("...)
-	i := 0
-	for j, c := range columns {
-		if !useStructValue[j] {
-			continue
-		}
+	for i, c := range columns {
 		if i != 0 {
 			q = append(q, ", "...)
 		}
 		q = append(q, c...)
-		i++
 	}
 	q = append(q, ") VALUES ("...)
-	i = 0
-	for j, c := range columns {
-		if !useStructValue[j] {
-			continue
-		}
+	for i, c := range columns {
 		if i != 0 {
 			q = append(q, ", "...)
 		}
-		q = append(q, ':')
-		q = append(q, c...)
-		i++
+		if i == autoIncrCol {
+			q = append(q, defValue...)
+		} else {
+			q = append(q, ':')
+			q = append(q, c...)
+		}
 	}
 	q = append(q, ')')
+	if useReturning && autoIncrCol >= 0 && autoIncrCol < len(columns) {
+		q = append(q, " RETURNING "...)
+		q = append(q, columns[autoIncrCol]...)
+	}
 
 	return string(q)
 }

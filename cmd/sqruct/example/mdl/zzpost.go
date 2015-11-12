@@ -12,16 +12,16 @@ import (
 // Post represents the following table.
 // 	CREATE TABLE post(
 // 		id INTEGER PRIMARY KEY,
-// 		userid INTEGER NOT NULL,
+// 		accountid INTEGER NOT NULL,
 // 		at DATETIME NOT NULL,
 // 		message VARCHAR(8125) NOT NULL,
-// 		FOREIGN KEY (userid) REFERENCES user(id) ON DELETE CASCADE
+// 		FOREIGN KEY (accountid) REFERENCES account(id) ON DELETE CASCADE
 // 	);
 type Post struct {
-	ID      int64     `mdl:"pk,notnull,uniq,default,autoincr"`
-	UserID  int64     `mdl:"fk,notnull"`
-	At      time.Time `mdl:"notnull"`
-	Message string    `mdl:"notnull"`
+	ID        int64     `mdl:"pk,notnull,uniq,default,autoincr"`
+	AccountID int64     `mdl:"fk,notnull"`
+	At        time.Time `mdl:"notnull"`
+	Message   string    `mdl:"notnull"`
 }
 
 func GetPost(e sqlx.Ext, id int64) (*Post, error) {
@@ -33,9 +33,9 @@ func GetPost(e sqlx.Ext, id int64) (*Post, error) {
 	return &t, nil
 }
 
-func (t *Post) GetUser(e sqlx.Ext) (*User, error) {
-	var ot User
-	err := sqlx.Get(e, &ot, e.Rebind("SELECT * FROM user WHERE (id = ?)"), t.UserID)
+func (t *Post) GetAccount(e sqlx.Ext) (*Account, error) {
+	var ot Account
+	err := sqlx.Get(e, &ot, e.Rebind("SELECT * FROM account WHERE (id = ?)"), t.AccountID)
 	if err != nil {
 		return nil, err
 	}
@@ -51,25 +51,34 @@ func (t *Post) SelectPostTag(e sqlx.Ext) ([]PostTag, error) {
 	return ot, nil
 }
 
+func (t *Post) TableName() string {
+	return "post"
+}
+
+func (t *Post) Columns() []string {
+	return []string{"id", "accountid", "at", "message"}
+}
+
+func (t *Post) AutoIncrementColumnIndex() int {
+	return 0
+}
+
 func (t *Post) Insert(e sqlx.Ext) error {
-	z := sqruct.IsZero(t.ID)
-	r, err := sqlx.NamedExec(e, sqruct.BuildInsertQuery(
-		"post",
-		[]string{"id", "userid", "at", "message"},
-		[]bool{!z, true, true, true},
-	), t)
+
+	useai := sqruct.IsZero(t.ID)
+	i, err := sqruct.SQLite{}.Insert(e, t, useai)
 	if err != nil {
 		return err
 	}
-	if z {
-		t.ID, err = r.LastInsertId()
-		return err
+	if useai {
+		t.ID = i
 	}
 	return nil
+
 }
 
 func (t *Post) Update(e sqlx.Ext) error {
-	_, err := sqlx.NamedExec(e, "UPDATE post SET userid = :userid, at = :at, message = :message WHERE (id = :id)", t)
+	_, err := sqlx.NamedExec(e, "UPDATE post SET accountid = :accountid, at = :at, message = :message WHERE (id = :id)", t)
 	return err
 }
 

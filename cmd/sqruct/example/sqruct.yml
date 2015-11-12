@@ -1,13 +1,13 @@
-User:
+Account:
   ID: int64 | INTEGER PRIMARY KEY AUTOINCREMENT
   Name: string | VARCHAR(30) NOT NULL UNIQUE
 
 Post:
   ID: int64 | INTEGER PRIMARY KEY
-  UserID: int64 | INTEGER NOT NULL
+  AccountID: int64 | INTEGER NOT NULL
   At: time.Time | DATETIME NOT NULL
   Message: string | VARCHAR(8125) NOT NULL
-  .after: FOREIGN KEY (userid) REFERENCES user(id) ON DELETE CASCADE
+  .after: FOREIGN KEY (accountid) REFERENCES account(id) ON DELETE CASCADE
 
 Tag:
   ID: int64 | INTEGER PRIMARY KEY

@@ -47,18 +47,23 @@ func (t *PostTag) GetTag(e sqlx.Ext) (*Tag, error) {
 	return &ot, nil
 }
 
+func (t *PostTag) TableName() string {
+	return "posttag"
+}
+
+func (t *PostTag) Columns() []string {
+	return []string{"postid", "tagid"}
+}
+
+func (t *PostTag) AutoIncrementColumnIndex() int {
+	return -1
+}
+
 func (t *PostTag) Insert(e sqlx.Ext) error {
 
-	_, err := sqlx.NamedExec(e, sqruct.BuildInsertQuery(
-		"posttag",
-		[]string{"postid", "tagid"},
-		[]bool{true, true},
-	), t)
-	if err != nil {
-		return err
-	}
+	_, err := sqruct.SQLite{}.Insert(e, t, false)
+	return err
 
-	return nil
 }
 
 func (t *PostTag) Update(e sqlx.Ext) error {

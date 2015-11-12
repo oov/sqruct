@@ -35,21 +35,30 @@ func (t *Tag) SelectPostTag(e sqlx.Ext) ([]PostTag, error) {
 	return ot, nil
 }
 
+func (t *Tag) TableName() string {
+	return "tag"
+}
+
+func (t *Tag) Columns() []string {
+	return []string{"id", "name"}
+}
+
+func (t *Tag) AutoIncrementColumnIndex() int {
+	return 0
+}
+
 func (t *Tag) Insert(e sqlx.Ext) error {
-	z := sqruct.IsZero(t.ID)
-	r, err := sqlx.NamedExec(e, sqruct.BuildInsertQuery(
-		"tag",
-		[]string{"id", "name"},
-		[]bool{!z, true},
-	), t)
+
+	useai := sqruct.IsZero(t.ID)
+	i, err := sqruct.SQLite{}.Insert(e, t, useai)
 	if err != nil {
 		return err
 	}
-	if z {
-		t.ID, err = r.LastInsertId()
-		return err
+	if useai {
+		t.ID = i
 	}
 	return nil
+
 }
 
 func (t *Tag) Update(e sqlx.Ext) error {

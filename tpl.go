@@ -61,23 +61,45 @@ func (t *{{$t.GoName}}) {{$method}}(e sqlx.Ext) ([]{{$fk.Table.GoName}}, error) 
 {{end}}
 {{end}}
 
+{{$method := "TableName"}}
+{{if .OmitMethod $method}}/*{{end}}
+func (t *{{.GoName}}) {{$method}}() string {
+	return {{printf "%q" .SQLName}}
+}
+{{if .OmitMethod $method}}*/{{end}}
+
+{{$method := "Columns"}}
+{{if .OmitMethod $method}}/*{{end}}
+func (t *{{.GoName}}) {{$method}}() []string {
+	return []string{ {{range $k, $v := .Column}}{{if $k}},{{end}}{{printf "%q" $v.SQLName}}{{end}} }
+}
+{{if .OmitMethod $method}}*/{{end}}
+
+{{$method := "AutoIncrementColumnIndex"}}
+{{if .OmitMethod $method}}/*{{end}}
+func (t *{{.GoName}}) {{$method}}() int {
+	return {{if .AutoIncrementColumn}}{{range $k, $v := .Column}}{{if $v.AutoIncrement}}{{$k}}{{end}}{{end}}{{else}}-1{{end}}
+}
+{{if .OmitMethod $method}}*/{{end}}
+
 {{$method := "Insert"}}
 {{if .OmitMethod $method}}/*{{end}}
 func (t *{{.GoName}}) {{$method}}(e sqlx.Ext) error {
-	{{$aicol := .AutoIncrementColumn}}{{if $aicol}}z := sqruct.IsZero(t.{{$aicol.GoName}}){{end}}
-	{{if $aicol}}r{{else}}_{{end}}, err := sqlx.NamedExec(e, sqruct.BuildInsertQuery(
-		{{printf "%q" .SQLName}},
-		[]string{ {{range $k, $v := .Column}}{{if $k}},{{end}}{{printf "%q" $v.SQLName}}{{end}} },
-		[]bool{ {{range $k, $v := .Column}}{{if $k}},{{end}}{{if $v.AutoIncrement}}!z{{else}}true{{end}}{{end}} },
-	), t)
-	if err != nil {
+	{{$aicol := .AutoIncrementColumn}}
+	{{if $aicol}}
+		useai := sqruct.IsZero(t.{{$aicol.GoName}})
+		i, err := sqruct.{{.Mode}}{}.Insert(e, t, useai)
+		if err != nil {
+			return err
+		}
+		if useai {
+			t.{{$aicol.GoName}} = {{if eq $aicol.GoStructFieldType "int64"}}i{{else}}{{$aicol.GoStructFieldType}}(i){{end}}
+		}
+		return nil
+	{{else}}
+		_, err := sqruct.{{.Mode}}{}.Insert(e, t, false)
 		return err
-	}
-	{{if $aicol}}if z {
-		t.{{$aicol.GoName}}, err = r.LastInsertId()
-		return err
-	}{{end}}
-	return nil
+	{{end}}
 }
 {{if .OmitMethod $method}}*/{{end}}
 
