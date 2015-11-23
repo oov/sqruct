@@ -1,4 +1,4 @@
-package sqruct
+package gen
 
 import "strings"
 

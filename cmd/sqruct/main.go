@@ -5,7 +5,8 @@ import (
 	"log"
 	"path"
 
-	"github.com/oov/sqruct"
+	"github.com/oov/sqruct/gen"
+
 	"gopkg.in/yaml.v2"
 )
 
@@ -15,7 +16,7 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	var sq sqruct.Sqruct
+	var sq gen.Sqruct
 	err = yaml.Unmarshal(b, &sq)
 	if err != nil {
 		log.Fatalln(err)

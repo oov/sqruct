@@ -1,9 +1,11 @@
-package sqruct
+package gen
 
 import (
 	"bytes"
 	"strings"
 	"text/template"
+
+	"github.com/oov/sqruct"
 
 	"golang.org/x/tools/imports"
 )
@@ -101,7 +103,7 @@ func (t *Table) SQLName() string {
 }
 
 // Mode returns current database mode.
-func (t *Table) Mode() Mode {
+func (t *Table) Mode() sqruct.Mode {
 	return t.parent.Config.Mode
 }
 

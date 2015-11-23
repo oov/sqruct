@@ -7,7 +7,7 @@ import (
 
 // Mode represents Sqruct processing mode.
 type Mode interface {
-	// String implemenets the Stringer interface.
+	// String implemenets the Stringer interface. it return such as "MySQL".
 	String() string
 	// DefaultValueKeyword returns default value keyword that is used in insert statements.
 	DefaultValueKeyword() string
@@ -62,8 +62,7 @@ func (m postgreSQL) Insert(db DB, table string, columns []string, values []inter
 }
 
 func (postgreSQL) PlaceholderGenerator() PlaceholderGenerator {
-	var r postgresPlaceholderGenerator
-	return &r
+	return &postgresPlaceholderGenerator{}
 }
 
 func (m postgreSQL) Rebind(s string) string {

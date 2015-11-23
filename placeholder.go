@@ -1,7 +1,10 @@
 package sqruct
 
+// PlaceholderGenerator generates placeholders for SQL statements.
 type PlaceholderGenerator interface {
+	// Placeholder generates next placeholder.
 	Placeholder() string
+	// Len returns length of placeholder at given index.
 	Len(index int) int
 }
 

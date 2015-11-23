@@ -1,4 +1,4 @@
-package sqruct
+package gen
 
 const createTableTemplate = `CREATE TABLE {{.SQLName}}(
 	{{range $k, $v := .Column}}{{if $k}},

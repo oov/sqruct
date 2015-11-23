@@ -1,5 +1,4 @@
-// Package sqruct is database table to struct mapping tool.
-package sqruct
+package gen
 
 import (
 	"fmt"
@@ -8,15 +7,17 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/oov/sqruct"
+
 	"gopkg.in/yaml.v2"
 )
 
 // Config represents Sqruct configuration.
 type Config struct {
-	Mode    Mode   // Processing mode, such as "sqlite".
-	Package string // Package name in source code in Go.
-	Tag     string // Tag name in struct definition in Go.
-	Dir     string // Source code output directory.
+	Mode    sqruct.Mode // Processing mode.
+	Package string      // Package name in source code in Go.
+	Tag     string      // Tag name in struct definition in Go.
+	Dir     string      // Source code output directory.
 }
 
 // Sqruct...
@@ -74,11 +75,11 @@ func (sq *Sqruct) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		}
 		switch strings.ToLower(strings.TrimSpace(t.C.Mode)) {
 		case "mysql":
-			sq.Config.Mode = MySQL
+			sq.Config.Mode = sqruct.MySQL
 		case "postgresql", "postgres":
-			sq.Config.Mode = PostgreSQL
+			sq.Config.Mode = sqruct.PostgreSQL
 		case "sqlite", "sqlite3":
-			sq.Config.Mode = SQLite
+			sq.Config.Mode = sqruct.SQLite
 		default:
 			return fmt.Errorf("sqruct: could not detect mode: %q", t.C.Mode)
 		}
