@@ -93,6 +93,10 @@ func (t *Post) Values() []interface{} {
 	return []interface{}{t.ID, t.AccountID, t.At, t.Message}
 }
 
+func (t *Post) ValuePointers() []interface{} {
+	return []interface{}{&t.ID, &t.AccountID, &t.At, &t.Message}
+}
+
 func (t *Post) AutoIncrementColumnIndex() int {
 	return 0
 }

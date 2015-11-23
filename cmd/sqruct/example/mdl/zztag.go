@@ -73,6 +73,10 @@ func (t *Tag) Values() []interface{} {
 	return []interface{}{t.ID, t.Name}
 }
 
+func (t *Tag) ValuePointers() []interface{} {
+	return []interface{}{&t.ID, &t.Name}
+}
+
 func (t *Tag) AutoIncrementColumnIndex() int {
 	return 0
 }

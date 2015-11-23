@@ -73,6 +73,10 @@ func (t *Account) Values() []interface{} {
 	return []interface{}{t.ID, t.Name}
 }
 
+func (t *Account) ValuePointers() []interface{} {
+	return []interface{}{&t.ID, &t.Name}
+}
+
 func (t *Account) AutoIncrementColumnIndex() int {
 	return 0
 }

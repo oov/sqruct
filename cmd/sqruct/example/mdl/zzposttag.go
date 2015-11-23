@@ -71,6 +71,10 @@ func (t *PostTag) Values() []interface{} {
 	return []interface{}{t.PostID, t.TagID}
 }
 
+func (t *PostTag) ValuePointers() []interface{} {
+	return []interface{}{&t.PostID, &t.TagID}
+}
+
 func (t *PostTag) AutoIncrementColumnIndex() int {
 	return -1
 }

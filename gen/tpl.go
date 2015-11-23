@@ -112,6 +112,13 @@ func (t *{{.GoName}}) {{$method}}() []interface{} {
 }
 {{if .OmitMethod $method}}*/{{end}}
 
+{{$method := "ValuePointers"}}
+{{if .OmitMethod $method}}/*{{end}}
+func (t *{{.GoName}}) {{$method}}() []interface{} {
+	return []interface{}{ {{range $k, $v := .Column}}{{if $k}},{{end}}&t.{{$v.GoName}}{{end}} }
+}
+{{if .OmitMethod $method}}*/{{end}}
+
 {{$method := "AutoIncrementColumnIndex"}}
 {{if .OmitMethod $method}}/*{{end}}
 func (t *{{.GoName}}) {{$method}}() int {
