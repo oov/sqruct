@@ -3,7 +3,8 @@
 package mdl
 
 import (
-	"github.com/jmoiron/sqlx"
+	"database/sql"
+
 	"github.com/oov/sqruct"
 )
 
@@ -17,22 +18,60 @@ type Tag struct {
 	Name string `mdl:"notnull,uniq"`
 }
 
-func GetTag(e sqlx.Ext, id int64) (*Tag, error) {
-	var t Tag
-	err := sqlx.Get(e, &t, e.Rebind("SELECT * FROM tag WHERE (id = ?)"), id)
+func GetTag(db sqruct.DB, id int64) (*Tag, error) {
+
+	r, err := db.Query(
+		"SELECT id, name FROM tag WHERE (id = ?)",
+		id,
+	)
 	if err != nil {
 		return nil, err
 	}
+	defer r.Close()
+
+	if !r.Next() {
+		if err = r.Err(); err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var t Tag
+	if err = r.Scan(&t.ID, &t.Name); err != nil {
+		return nil, err
+	}
+
 	return &t, nil
+
 }
 
-func (t *Tag) SelectPostTag(e sqlx.Ext) ([]PostTag, error) {
-	var ot []PostTag
-	err := sqlx.Select(e, &ot, e.Rebind("SELECT * FROM posttag WHERE (tagid = ?)"), t.ID)
+func (t *Tag) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
+
+	r, err := db.Query(
+		"SELECT postid, tagid FROM posttag WHERE (tagid = ?)",
+		t.ID,
+	)
 	if err != nil {
 		return nil, err
 	}
+	defer r.Close()
+
+	var ot []PostTag
+	for r.Next() {
+		var e PostTag
+		if err = r.Scan(&e.PostID, &e.TagID); err != nil {
+			return nil, err
+		}
+		ot = append(ot, e)
+	}
+	if err = r.Err(); err != nil {
+		return nil, err
+	}
+	if ot == nil {
+		return nil, sql.ErrNoRows
+	}
 	return ot, nil
+
 }
 
 func (t *Tag) TableName() string {
@@ -43,30 +82,44 @@ func (t *Tag) Columns() []string {
 	return []string{"id", "name"}
 }
 
+func (t *Tag) Values() []interface{} {
+	return []interface{}{t.ID, t.Name}
+}
+
 func (t *Tag) AutoIncrementColumnIndex() int {
 	return 0
 }
 
-func (t *Tag) Insert(e sqlx.Ext) error {
+func (t *Tag) Insert(db sqruct.DB) error {
 
-	useai := sqruct.IsZero(t.ID)
-	i, err := sqruct.SQLite{}.Insert(e, t, useai)
+	i, err := sqruct.SQLite.Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
 	if err != nil {
 		return err
 	}
-	if useai {
+	if i != 0 {
 		t.ID = i
 	}
 	return nil
 
 }
 
-func (t *Tag) Update(e sqlx.Ext) error {
-	_, err := sqlx.NamedExec(e, "UPDATE tag SET name = :name WHERE (id = :id)", t)
+func (t *Tag) Update(db sqruct.DB) error {
+
+	_, err := db.Exec(
+		"UPDATE tag SET name = ? WHERE (id = ?)",
+		t.Name,
+		t.ID,
+	)
 	return err
+
 }
 
-func (t *Tag) Delete(e sqlx.Ext) error {
-	_, err := sqlx.NamedExec(e, "DELETE FROM tag WHERE (id = :id)", t)
+func (t *Tag) Delete(db sqruct.DB) error {
+
+	_, err := db.Exec(
+		"DELETE FROM tag WHERE (id = ?)",
+		t.ID,
+	)
 	return err
+
 }

@@ -3,7 +3,8 @@
 package mdl
 
 import (
-	"github.com/jmoiron/sqlx"
+	"database/sql"
+
 	"github.com/oov/sqruct"
 )
 
@@ -20,31 +21,85 @@ type PostTag struct {
 	TagID  int64 `mdl:"fk,notnull"`
 }
 
-func GetPostTag(e sqlx.Ext, postid int64, tagid int64) (*PostTag, error) {
+func GetPostTag(db sqruct.DB, postid int64, tagid int64) (*PostTag, error) {
+
+	r, err := db.Query(
+		"SELECT postid, tagid FROM posttag WHERE (postid = ?)AND(tagid = ?)",
+		postid, tagid,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	if !r.Next() {
+		if err = r.Err(); err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
 	var t PostTag
-	err := sqlx.Get(e, &t, e.Rebind("SELECT * FROM posttag WHERE (postid = ?)AND(tagid = ?)"), postid, tagid)
-	if err != nil {
+	if err = r.Scan(&t.PostID, &t.TagID); err != nil {
 		return nil, err
 	}
+
 	return &t, nil
+
 }
 
-func (t *PostTag) GetPost(e sqlx.Ext) (*Post, error) {
+func (t *PostTag) GetPost(db sqruct.DB) (*Post, error) {
+
+	r, err := db.Query(
+		"SELECT id, accountid, at, message FROM post WHERE (id = ?)",
+		t.PostID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	if !r.Next() {
+		if err = r.Err(); err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
 	var ot Post
-	err := sqlx.Get(e, &ot, e.Rebind("SELECT * FROM post WHERE (id = ?)"), t.PostID)
-	if err != nil {
+	if err = r.Scan(&ot.ID, &ot.AccountID, &ot.At, &ot.Message); err != nil {
 		return nil, err
 	}
+
 	return &ot, nil
+
 }
 
-func (t *PostTag) GetTag(e sqlx.Ext) (*Tag, error) {
-	var ot Tag
-	err := sqlx.Get(e, &ot, e.Rebind("SELECT * FROM tag WHERE (id = ?)"), t.TagID)
+func (t *PostTag) GetTag(db sqruct.DB) (*Tag, error) {
+
+	r, err := db.Query(
+		"SELECT id, name FROM tag WHERE (id = ?)",
+		t.TagID,
+	)
 	if err != nil {
 		return nil, err
 	}
+	defer r.Close()
+
+	if !r.Next() {
+		if err = r.Err(); err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var ot Tag
+	if err = r.Scan(&ot.ID, &ot.Name); err != nil {
+		return nil, err
+	}
+
 	return &ot, nil
+
 }
 
 func (t *PostTag) TableName() string {
@@ -55,23 +110,32 @@ func (t *PostTag) Columns() []string {
 	return []string{"postid", "tagid"}
 }
 
+func (t *PostTag) Values() []interface{} {
+	return []interface{}{t.PostID, t.TagID}
+}
+
 func (t *PostTag) AutoIncrementColumnIndex() int {
 	return -1
 }
 
-func (t *PostTag) Insert(e sqlx.Ext) error {
+func (t *PostTag) Insert(db sqruct.DB) error {
 
-	_, err := sqruct.SQLite{}.Insert(e, t, false)
+	_, err := sqruct.SQLite.Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
 	return err
 
 }
 
-func (t *PostTag) Update(e sqlx.Ext) error {
+func (t *PostTag) Update(db sqruct.DB) error {
 	// PostTag has primary key only
 	return nil
 }
 
-func (t *PostTag) Delete(e sqlx.Ext) error {
-	_, err := sqlx.NamedExec(e, "DELETE FROM posttag WHERE (postid = :postid)AND(tagid = :tagid)", t)
+func (t *PostTag) Delete(db sqruct.DB) error {
+
+	_, err := db.Exec(
+		"DELETE FROM posttag WHERE (postid = ?)AND(tagid = ?)",
+		t.PostID, t.TagID,
+	)
 	return err
+
 }

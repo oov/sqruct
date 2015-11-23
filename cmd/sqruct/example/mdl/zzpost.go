@@ -3,9 +3,9 @@
 package mdl
 
 import (
+	"database/sql"
 	"time"
 
-	"github.com/jmoiron/sqlx"
 	"github.com/oov/sqruct"
 )
 
@@ -24,31 +24,87 @@ type Post struct {
 	Message   string    `mdl:"notnull"`
 }
 
-func GetPost(e sqlx.Ext, id int64) (*Post, error) {
+func GetPost(db sqruct.DB, id int64) (*Post, error) {
+
+	r, err := db.Query(
+		"SELECT id, accountid, at, message FROM post WHERE (id = ?)",
+		id,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+
+	if !r.Next() {
+		if err = r.Err(); err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
 	var t Post
-	err := sqlx.Get(e, &t, e.Rebind("SELECT * FROM post WHERE (id = ?)"), id)
-	if err != nil {
+	if err = r.Scan(&t.ID, &t.AccountID, &t.At, &t.Message); err != nil {
 		return nil, err
 	}
+
 	return &t, nil
+
 }
 
-func (t *Post) GetAccount(e sqlx.Ext) (*Account, error) {
-	var ot Account
-	err := sqlx.Get(e, &ot, e.Rebind("SELECT * FROM account WHERE (id = ?)"), t.AccountID)
+func (t *Post) GetAccount(db sqruct.DB) (*Account, error) {
+
+	r, err := db.Query(
+		"SELECT id, name FROM account WHERE (id = ?)",
+		t.AccountID,
+	)
 	if err != nil {
 		return nil, err
 	}
+	defer r.Close()
+
+	if !r.Next() {
+		if err = r.Err(); err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+	var ot Account
+	if err = r.Scan(&ot.ID, &ot.Name); err != nil {
+		return nil, err
+	}
+
 	return &ot, nil
+
 }
 
-func (t *Post) SelectPostTag(e sqlx.Ext) ([]PostTag, error) {
-	var ot []PostTag
-	err := sqlx.Select(e, &ot, e.Rebind("SELECT * FROM posttag WHERE (postid = ?)"), t.ID)
+func (t *Post) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
+
+	r, err := db.Query(
+		"SELECT postid, tagid FROM posttag WHERE (postid = ?)",
+		t.ID,
+	)
 	if err != nil {
 		return nil, err
+	}
+	defer r.Close()
+
+	var ot []PostTag
+	for r.Next() {
+		var e PostTag
+		if err = r.Scan(&e.PostID, &e.TagID); err != nil {
+			return nil, err
+		}
+		ot = append(ot, e)
+	}
+	if err = r.Err(); err != nil {
+		return nil, err
+	}
+	if ot == nil {
+		return nil, sql.ErrNoRows
 	}
 	return ot, nil
+
 }
 
 func (t *Post) TableName() string {
@@ -59,30 +115,44 @@ func (t *Post) Columns() []string {
 	return []string{"id", "accountid", "at", "message"}
 }
 
+func (t *Post) Values() []interface{} {
+	return []interface{}{t.ID, t.AccountID, t.At, t.Message}
+}
+
 func (t *Post) AutoIncrementColumnIndex() int {
 	return 0
 }
 
-func (t *Post) Insert(e sqlx.Ext) error {
+func (t *Post) Insert(db sqruct.DB) error {
 
-	useai := sqruct.IsZero(t.ID)
-	i, err := sqruct.SQLite{}.Insert(e, t, useai)
+	i, err := sqruct.SQLite.Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
 	if err != nil {
 		return err
 	}
-	if useai {
+	if i != 0 {
 		t.ID = i
 	}
 	return nil
 
 }
 
-func (t *Post) Update(e sqlx.Ext) error {
-	_, err := sqlx.NamedExec(e, "UPDATE post SET accountid = :accountid, at = :at, message = :message WHERE (id = :id)", t)
+func (t *Post) Update(db sqruct.DB) error {
+
+	_, err := db.Exec(
+		"UPDATE post SET accountid = ?, at = ?, message = ? WHERE (id = ?)",
+		t.AccountID, t.At, t.Message,
+		t.ID,
+	)
 	return err
+
 }
 
-func (t *Post) Delete(e sqlx.Ext) error {
-	_, err := sqlx.NamedExec(e, "DELETE FROM post WHERE (id = :id)", t)
+func (t *Post) Delete(db sqruct.DB) error {
+
+	_, err := db.Exec(
+		"DELETE FROM post WHERE (id = ?)",
+		t.ID,
+	)
 	return err
+
 }

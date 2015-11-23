@@ -22,13 +22,31 @@ type {{.GoName}} struct {
 
 {{$method := print "Get" .GoName}}
 {{if .OmitMethod $method}}/*{{end}}
-func {{$method}}(e sqlx.Ext{{range $k, $v := .PrimaryKey.Column}}, {{$v.SQLName}} {{$v.GoStructFieldType}}{{end}}) (*{{.GoName}}, error) {
-  var t {{.GoName}}
-  err := sqlx.Get(e, &t, e.Rebind("SELECT * FROM {{.SQLName}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = ?){{end}}"){{range $k, $v := .PrimaryKey.Column}}, {{$v.SQLName}}{{end}})
+func {{$method}}(db sqruct.DB{{range $k, $v := .PrimaryKey.Column}}, {{$v.SQLName}} {{$v.GoStructFieldType}}{{end}}) (*{{.GoName}}, error) {
+	{{$g := .Mode.PlaceholderGenerator}}
+  r, err := db.Query(
+		"SELECT {{range $k, $v := .Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}} FROM {{.SQLName}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = {{$g.Placeholder}}){{end}}",
+		{{range $k, $v := .PrimaryKey.Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}},
+	)
   if err != nil {
   	return nil, err
   }
+	defer r.Close()
+
+	if !r.Next() {
+		if err = r.Err(); err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+  var t {{.GoName}}
+	if err = r.Scan({{range $k, $v := .Column}}{{if $k}}, {{end}}&t.{{$v.GoName}}{{end}}); err != nil {
+  	return nil, err
+  }
+
   return &t, nil
+
 }
 {{if .OmitMethod $method}}*/{{end}}
 
@@ -37,25 +55,63 @@ func {{$method}}(e sqlx.Ext{{range $k, $v := .PrimaryKey.Column}}, {{$v.SQLName}
 {{if and (eq (len $fk.Column) 1) (index $fk.Column 0).Other.PrimaryKey}}
 {{$method := print "Get" $fk.Table.GoName}}
 {{if $t.OmitMethod $method}}/*{{end}}
-func (t *{{$t.GoName}}) {{$method}}(e sqlx.Ext) (*{{$fk.Table.GoName}}, error) {
-  var ot {{$fk.Table.GoName}}
-  err := sqlx.Get(e, &ot, e.Rebind("SELECT * FROM {{$fk.Table.SQLName}} WHERE {{range $k, $v := $fk.Column}}{{if $k}}AND{{end}}({{$v.Other.SQLName}} = ?){{end}}"){{range $k, $v := $fk.Column}}, t.{{$v.Self.GoName}}{{end}})
+func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) (*{{$fk.Table.GoName}}, error) {
+	{{$g := $t.Mode.PlaceholderGenerator}}
+  r, err := db.Query(
+		"SELECT {{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}} FROM {{$fk.Table.SQLName}} WHERE {{range $k, $v := $fk.Column}}{{if $k}}AND{{end}}({{$v.Other.SQLName}} = {{$g.Placeholder}}){{end}}",
+		{{range $k, $v := $fk.Column}}{{if $k}}, {{end}}t.{{$v.Self.GoName}}{{end}},
+	)
   if err != nil {
   	return nil, err
   }
+	defer r.Close()
+
+	if !r.Next() {
+		if err = r.Err(); err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+
+  var ot {{$fk.Table.GoName}}
+	if err = r.Scan({{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}&ot.{{$v.GoName}}{{end}}); err != nil {
+  	return nil, err
+  }
+
   return &ot, nil
+
 }
 {{if $t.OmitMethod $method}}*/{{end}}
 {{else}}
 {{$method := print "Select" $fk.Table.GoName}}
 {{if $t.OmitMethod $method}}/*{{end}}
-func (t *{{$t.GoName}}) {{$method}}(e sqlx.Ext) ([]{{$fk.Table.GoName}}, error) {
-  var ot []{{$fk.Table.GoName}}
-  err := sqlx.Select(e, &ot, e.Rebind("SELECT * FROM {{$fk.Table.SQLName}} WHERE {{range $k, $v := $fk.Column}}{{if $k}}AND{{end}}({{$v.Other.SQLName}} = ?){{end}}"){{range $k, $v := $fk.Column}}, t.{{$v.Self.GoName}}{{end}})
+func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) ([]{{$fk.Table.GoName}}, error) {
+	{{$g := $t.Mode.PlaceholderGenerator}}
+  r, err := db.Query(
+		"SELECT {{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}} FROM {{$fk.Table.SQLName}} WHERE {{range $k, $v := $fk.Column}}{{if $k}}AND{{end}}({{$v.Other.SQLName}} = {{$g.Placeholder}}){{end}}",
+		{{range $k, $v := $fk.Column}}{{if $k}}, {{end}}t.{{$v.Self.GoName}}{{end}},
+	)
   if err != nil {
   	return nil, err
   }
-  return ot, nil
+	defer r.Close()
+
+  var ot []{{$fk.Table.GoName}}
+	for r.Next() {
+		var e {{$fk.Table.GoName}}
+		if err = r.Scan({{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}&e.{{$v.GoName}}{{end}}); err != nil {
+  		return nil, err
+  	}
+		ot = append(ot, e)
+	}
+	if err = r.Err(); err != nil {
+		return nil, err
+	}
+	if ot == nil {
+		return nil, sql.ErrNoRows
+	}
+	return ot, nil
+
 }
 {{if $t.OmitMethod $method}}*/{{end}}
 {{end}}
@@ -75,6 +131,13 @@ func (t *{{.GoName}}) {{$method}}() []string {
 }
 {{if .OmitMethod $method}}*/{{end}}
 
+{{$method := "Values"}}
+{{if .OmitMethod $method}}/*{{end}}
+func (t *{{.GoName}}) {{$method}}() []interface{} {
+	return []interface{}{ {{range $k, $v := .Column}}{{if $k}},{{end}}t.{{$v.GoName}}{{end}} }
+}
+{{if .OmitMethod $method}}*/{{end}}
+
 {{$method := "AutoIncrementColumnIndex"}}
 {{if .OmitMethod $method}}/*{{end}}
 func (t *{{.GoName}}) {{$method}}() int {
@@ -84,20 +147,19 @@ func (t *{{.GoName}}) {{$method}}() int {
 
 {{$method := "Insert"}}
 {{if .OmitMethod $method}}/*{{end}}
-func (t *{{.GoName}}) {{$method}}(e sqlx.Ext) error {
+func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
 	{{$aicol := .AutoIncrementColumn}}
 	{{if $aicol}}
-		useai := sqruct.IsZero(t.{{$aicol.GoName}})
-		i, err := sqruct.{{.Mode}}{}.Insert(e, t, useai)
+		i, err := sqruct.{{.Mode}}.Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
 		if err != nil {
 			return err
 		}
-		if useai {
+		if i != 0 {
 			t.{{$aicol.GoName}} = {{if eq $aicol.GoStructFieldType "int64"}}i{{else}}{{$aicol.GoStructFieldType}}(i){{end}}
 		}
 		return nil
 	{{else}}
-		_, err := sqruct.{{.Mode}}{}.Insert(e, t, false)
+		_, err := sqruct.{{.Mode}}.Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
 		return err
 	{{end}}
 }
@@ -106,12 +168,18 @@ func (t *{{.GoName}}) {{$method}}(e sqlx.Ext) error {
 {{$method := "Update"}}
 {{if .OmitMethod $method}}/*{{end}}
 {{if .NonPrimaryKeys}}
-func (t *{{.GoName}}) {{$method}}(e sqlx.Ext) error {
-	_, err := sqlx.NamedExec(e, "UPDATE {{.SQLName}} SET {{range $k, $v := .NonPrimaryKeys}}{{if $k}}, {{end}}{{$v.SQLName}} = :{{$v.SQLName}}{{end}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = :{{$v.SQLName}}){{end}}", t)
+func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
+	{{$g := .Mode.PlaceholderGenerator}}
+	_, err := db.Exec(
+		"UPDATE {{.SQLName}} SET {{range $k, $v := .NonPrimaryKeys}}{{if $k}}, {{end}}{{$v.SQLName}} = {{$g.Placeholder}}{{end}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = {{$g.Placeholder}}){{end}}",
+		{{range $k, $v := .NonPrimaryKeys}}{{if $k}}, {{end}}t.{{$v.GoName}}{{end}},
+		{{range $k, $v := .PrimaryKey.Column}}{{if $k}}, {{end}}t.{{$v.GoName}}{{end}},
+	)
 	return err
+
 }
 {{else}}
-func (t *{{.GoName}}) {{$method}}(e sqlx.Ext) error {
+func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
 	// {{.GoName}} has primary key only
 	return nil
 }
@@ -120,9 +188,14 @@ func (t *{{.GoName}}) {{$method}}(e sqlx.Ext) error {
 
 {{$method := "Delete"}}
 {{if .OmitMethod $method}}/*{{end}}
-func (t *{{.GoName}}) {{$method}}(e sqlx.Ext) error {
-	_, err := sqlx.NamedExec(e, "DELETE FROM {{.SQLName}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = :{{$v.SQLName}}){{end}}", t)
+func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
+	{{$g := .Mode.PlaceholderGenerator}}
+	_, err := db.Exec(
+		"DELETE FROM {{.SQLName}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = {{$g.Placeholder}}){{end}}",
+		{{range $k, $v := .PrimaryKey.Column}}{{if $k}}, {{end}}t.{{$v.GoName}}{{end}},
+	)
 	return err
+
 }
 {{if .OmitMethod $method}}*/{{end}}
 `

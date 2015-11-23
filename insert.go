@@ -2,61 +2,105 @@ package sqruct
 
 import "database/sql"
 
-// Ext represents github.com/jmoiron/sqlx.Ext.
-type Ext interface {
-	BindNamed(string, interface{}) (string, []interface{}, error)
+// DB represents subset of database/sql.DB or database/sql.Tx.
+type DB interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
 	Query(query string, args ...interface{}) (*sql.Rows, error)
 }
 
-func insertExec(e Ext, query string, table interface{}, needLastInsertID bool) (int64, error) {
-	q, args, err := e.BindNamed(query, table)
-	if err != nil {
-		return 0, err
+// buildInsert builds SQL such as "INSERT INTO table (column1, column2) VALUES (?, ?)".
+func buildInsert(table string, columns []string, autoIncrCol int, defValue string, g PlaceholderGenerator) []byte {
+	// calculate max length (including RETURNING clause)
+	l := len("INSERT INTO  () VALUES () RETURNING ") + len(table)
+	for i, c := range columns {
+		if i != 0 {
+			l += 4 // len(", ") for columns + values
+		}
+		if i == autoIncrCol {
+			// len(c) for columns + len(defValue) for values + len(c) for returning
+			l += len(c)*2 + len(defValue)
+		} else {
+			// len(c) for columns + Placeholder length for values
+			l += len(c) + g.Len(i)
+		}
 	}
-	r, err := e.Exec(q, args...)
-	if err != nil {
-		return 0, err
+
+	q := make([]byte, 0, l)
+	q = append(q, "INSERT INTO "...)
+	q = append(q, table...)
+	q = append(q, " ("...)
+	for i, c := range columns {
+		if i != 0 {
+			q = append(q, ", "...)
+		}
+		q = append(q, c...)
 	}
-	if needLastInsertID {
-		return r.LastInsertId()
+	q = append(q, ") VALUES ("...)
+	for i := range columns {
+		if i != 0 {
+			q = append(q, ", "...)
+		}
+		if i == autoIncrCol {
+			q = append(q, defValue...)
+		} else {
+			q = append(q, g.Placeholder()...)
+		}
 	}
-	return 0, nil
+	q = append(q, ')')
+	return q
 }
 
-func insertGet(e Ext, query string, table interface{}, needLastInsertID bool) (int64, error) {
-	q, args, err := e.BindNamed(query, table)
+func genericInsert(db DB, table string, columns []string, values []interface{},
+	autoIncrColumn int, defValue string, g PlaceholderGenerator) (int64, error) {
+	if IsZero(values[autoIncrColumn]) {
+		// Drop values[autoIncrColumn] becuase used DEFAULT in this case.
+		copy(values[autoIncrColumn:], values[autoIncrColumn+1:])
+		values = values[:len(values)-1]
+	} else {
+		autoIncrColumn = -1
+	}
+	qb := buildInsert(table, columns, autoIncrColumn, defValue, g)
+	r, err := db.Exec(string(qb), values...)
 	if err != nil {
 		return 0, err
 	}
-	if needLastInsertID {
-		r, err := e.Query(q, args...)
-		if err != nil {
+	if autoIncrColumn == -1 {
+		return 0, nil
+	}
+	return r.LastInsertId()
+}
+
+func postgresInsert(db DB, table string, columns []string, values []interface{},
+	autoIncrColumn int, defValue string, g PlaceholderGenerator) (int64, error) {
+	if IsZero(values[autoIncrColumn]) {
+		// Drop values[autoIncrColumn] because used DEFAULT in this case.
+		copy(values[autoIncrColumn:], values[autoIncrColumn+1:])
+		values = values[:len(values)-1]
+	} else {
+		autoIncrColumn = -1
+	}
+	qb := buildInsert(table, columns, autoIncrColumn, defValue, g)
+	if autoIncrColumn == -1 {
+		_, err := db.Exec(string(qb), values...)
+		return 0, err
+	}
+
+	qb = append(qb, " RETURNING "...)
+	qb = append(qb, columns[autoIncrColumn]...)
+	r, err := db.Query(string(qb), values...)
+	if err != nil {
+		return 0, err
+	}
+	defer r.Close()
+
+	if !r.Next() {
+		if err = r.Err(); err != nil {
 			return 0, err
 		}
-		defer r.Close()
-		if !r.Next() {
-			if err = r.Err(); err != nil {
-				return 0, err
-			}
-			return 0, sql.ErrNoRows
-		}
-		var i int64
-		err = r.Scan(&i)
-		return i, err
+		return 0, sql.ErrNoRows
 	}
-	_, err = e.Exec(q, args...)
-	return 0, err
-}
 
-func insert(e Ext, table DBTable, useAutoIncrement bool, defaultVal string, useReturning bool) (int64, error) {
-	idx := -1
-	if useAutoIncrement {
-		idx = table.AutoIncrementColumnIndex()
-	}
-	q := buildInsert(table.TableName(), table.Columns(), idx, defaultVal, useReturning)
-	if useReturning {
-		return insertGet(e, q, table, useAutoIncrement)
-	}
-	return insertExec(e, q, table, useAutoIncrement)
+	var i int64
+	err = r.Scan(&i)
+	return i, err
 }

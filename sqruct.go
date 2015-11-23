@@ -74,11 +74,11 @@ func (sq *Sqruct) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		}
 		switch strings.ToLower(strings.TrimSpace(t.C.Mode)) {
 		case "mysql":
-			sq.Config.Mode = MySQL{}
+			sq.Config.Mode = MySQL
 		case "postgresql", "postgres":
-			sq.Config.Mode = PostgreSQL{}
+			sq.Config.Mode = PostgreSQL
 		case "sqlite", "sqlite3":
-			sq.Config.Mode = SQLite{}
+			sq.Config.Mode = SQLite
 		default:
 			return fmt.Errorf("sqruct: could not detect mode: %q", t.C.Mode)
 		}
