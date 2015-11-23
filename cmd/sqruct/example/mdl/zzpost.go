@@ -18,6 +18,7 @@ import (
 // 		FOREIGN KEY (accountid) REFERENCES account(id) ON DELETE CASCADE
 // 	);
 type Post struct {
+	schema    zzPost
 	ID        int64     `mdl:"pk,notnull,uniq,default,autoincr"`
 	AccountID int64     `mdl:"fk,notnull"`
 	At        time.Time `mdl:"notnull"`
@@ -81,33 +82,9 @@ func (t *Post) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 
 }
 
-func (t *Post) TableName() string {
-	return "post"
-}
-
-func (t *Post) Columns() []string {
-	return []string{"id", "accountid", "at", "message"}
-}
-
-func (t *Post) Values() []interface{} {
-	return []interface{}{t.ID, t.AccountID, t.At, t.Message}
-}
-
-func (t *Post) ValuePointers() []interface{} {
-	return []interface{}{&t.ID, &t.AccountID, &t.At, &t.Message}
-}
-
-func (t *Post) AutoIncrementColumnIndex() int {
-	return 0
-}
-
-func (t *Post) SqructMode() sqruct.Mode {
-	return sqruct.SQLite
-}
-
 func (t *Post) Insert(db sqruct.DB) error {
 
-	i, err := t.SqructMode().Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
+	i, err := t.schema.Mode().Insert(db, t.schema.TableName(), t.schema.Columns(), t.schema.Values(t), t.schema.AutoIncrementColumnIndex())
 	if err != nil {
 		return err
 	}
@@ -137,4 +114,31 @@ func (t *Post) Delete(db sqruct.DB) error {
 	)
 	return err
 
+}
+
+// zzPost represents Post table schema.
+type zzPost struct{}
+
+func (zzPost) TableName() string {
+	return "post"
+}
+
+func (zzPost) Columns() []string {
+	return []string{"id", "accountid", "at", "message"}
+}
+
+func (zzPost) AutoIncrementColumnIndex() int {
+	return 0
+}
+
+func (zzPost) Values(t *Post) []interface{} {
+	return []interface{}{t.ID, t.AccountID, t.At, t.Message}
+}
+
+func (zzPost) Pointers(t *Post) []interface{} {
+	return []interface{}{&t.ID, &t.AccountID, &t.At, &t.Message}
+}
+
+func (zzPost) Mode() sqruct.Mode {
+	return sqruct.SQLite
 }

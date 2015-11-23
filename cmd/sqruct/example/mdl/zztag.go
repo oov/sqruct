@@ -14,8 +14,9 @@ import (
 // 		name VARCHAR(30) NOT NULL UNIQUE
 // 	);
 type Tag struct {
-	ID   int64  `mdl:"pk,notnull,uniq,default,autoincr"`
-	Name string `mdl:"notnull,uniq"`
+	schema zzTag
+	ID     int64  `mdl:"pk,notnull,uniq,default,autoincr"`
+	Name   string `mdl:"notnull,uniq"`
 }
 
 func GetTag(db sqruct.DB, id int64) (*Tag, error) {
@@ -61,33 +62,9 @@ func (t *Tag) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 
 }
 
-func (t *Tag) TableName() string {
-	return "tag"
-}
-
-func (t *Tag) Columns() []string {
-	return []string{"id", "name"}
-}
-
-func (t *Tag) Values() []interface{} {
-	return []interface{}{t.ID, t.Name}
-}
-
-func (t *Tag) ValuePointers() []interface{} {
-	return []interface{}{&t.ID, &t.Name}
-}
-
-func (t *Tag) AutoIncrementColumnIndex() int {
-	return 0
-}
-
-func (t *Tag) SqructMode() sqruct.Mode {
-	return sqruct.SQLite
-}
-
 func (t *Tag) Insert(db sqruct.DB) error {
 
-	i, err := t.SqructMode().Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
+	i, err := t.schema.Mode().Insert(db, t.schema.TableName(), t.schema.Columns(), t.schema.Values(t), t.schema.AutoIncrementColumnIndex())
 	if err != nil {
 		return err
 	}
@@ -117,4 +94,31 @@ func (t *Tag) Delete(db sqruct.DB) error {
 	)
 	return err
 
+}
+
+// zzTag represents Tag table schema.
+type zzTag struct{}
+
+func (zzTag) TableName() string {
+	return "tag"
+}
+
+func (zzTag) Columns() []string {
+	return []string{"id", "name"}
+}
+
+func (zzTag) AutoIncrementColumnIndex() int {
+	return 0
+}
+
+func (zzTag) Values(t *Tag) []interface{} {
+	return []interface{}{t.ID, t.Name}
+}
+
+func (zzTag) Pointers(t *Tag) []interface{} {
+	return []interface{}{&t.ID, &t.Name}
+}
+
+func (zzTag) Mode() sqruct.Mode {
+	return sqruct.SQLite
 }

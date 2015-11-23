@@ -17,6 +17,7 @@ package {{.PackageName}}
 // {{.GoName}} represents the following table.
 {{.MustCreateTableSQL.AddPrefix "// \t"}}
 type {{.GoName}} struct {
+	schema zz{{.GoName}}
 {{range $k, $v := .Column}}  {{$v.GoName}} {{$v.GoStructFieldWithTag}}
 {{end}}}
 
@@ -90,55 +91,12 @@ func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) ([]{{$fk.Table.GoName}}, error
 {{if $t.OmitMethod $method}}*/{{end}}
 {{end}}
 {{end}}
-
-{{$method := "TableName"}}
-{{if .OmitMethod $method}}/*{{end}}
-func (t *{{.GoName}}) {{$method}}() string {
-	return {{printf "%q" .SQLName}}
-}
-{{if .OmitMethod $method}}*/{{end}}
-
-{{$method := "Columns"}}
-{{if .OmitMethod $method}}/*{{end}}
-func (t *{{.GoName}}) {{$method}}() []string {
-	return []string{ {{range $k, $v := .Column}}{{if $k}},{{end}}{{printf "%q" $v.SQLName}}{{end}} }
-}
-{{if .OmitMethod $method}}*/{{end}}
-
-{{$method := "Values"}}
-{{if .OmitMethod $method}}/*{{end}}
-func (t *{{.GoName}}) {{$method}}() []interface{} {
-	return []interface{}{ {{range $k, $v := .Column}}{{if $k}},{{end}}t.{{$v.GoName}}{{end}} }
-}
-{{if .OmitMethod $method}}*/{{end}}
-
-{{$method := "ValuePointers"}}
-{{if .OmitMethod $method}}/*{{end}}
-func (t *{{.GoName}}) {{$method}}() []interface{} {
-	return []interface{}{ {{range $k, $v := .Column}}{{if $k}},{{end}}&t.{{$v.GoName}}{{end}} }
-}
-{{if .OmitMethod $method}}*/{{end}}
-
-{{$method := "AutoIncrementColumnIndex"}}
-{{if .OmitMethod $method}}/*{{end}}
-func (t *{{.GoName}}) {{$method}}() int {
-	return {{if .AutoIncrementColumn}}{{range $k, $v := .Column}}{{if $v.AutoIncrement}}{{$k}}{{end}}{{end}}{{else}}-1{{end}}
-}
-{{if .OmitMethod $method}}*/{{end}}
-
-{{$method := "SqructMode"}}
-{{if .OmitMethod $method}}/*{{end}}
-func (t *{{.GoName}}) {{$method}}() sqruct.Mode {
-	return sqruct.{{.Mode}}
-}
-{{if .OmitMethod $method}}*/{{end}}
-
 {{$method := "Insert"}}
 {{if .OmitMethod $method}}/*{{end}}
 func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
 	{{$aicol := .AutoIncrementColumn}}
 	{{if $aicol}}
-		i, err := t.SqructMode().Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
+		i, err := t.schema.Mode().Insert(db, t.schema.TableName(), t.schema.Columns(), t.schema.Values(t), t.schema.AutoIncrementColumnIndex())
 		if err != nil {
 			return err
 		}
@@ -147,7 +105,7 @@ func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
 		}
 		return nil
 	{{else}}
-		_, err := t.SqructMode().Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
+		_, err := t.schema.Mode().Insert(db, t.schema.TableName(), t.schema.Columns(), t.schema.Values(t), t.schema.AutoIncrementColumnIndex())
 		return err
 	{{end}}
 }
@@ -186,4 +144,50 @@ func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
 
 }
 {{if .OmitMethod $method}}*/{{end}}
+
+// zz{{.GoName}} represents {{.GoName}} table schema.
+type zz{{.GoName}} struct {}
+
+{{$method := "TableName"}}
+{{if .OmitMethod $method}}/*{{end}}
+func (zz{{.GoName}}) {{$method}}() string {
+	return {{printf "%q" .SQLName}}
+}
+{{if .OmitMethod $method}}*/{{end}}
+
+{{$method := "Columns"}}
+{{if .OmitMethod $method}}/*{{end}}
+func (zz{{.GoName}}) {{$method}}() []string {
+	return []string{ {{range $k, $v := .Column}}{{if $k}},{{end}}{{printf "%q" $v.SQLName}}{{end}} }
+}
+{{if .OmitMethod $method}}*/{{end}}
+
+{{$method := "AutoIncrementColumnIndex"}}
+{{if .OmitMethod $method}}/*{{end}}
+func (zz{{.GoName}}) {{$method}}() int {
+	return {{if .AutoIncrementColumn}}{{range $k, $v := .Column}}{{if $v.AutoIncrement}}{{$k}}{{end}}{{end}}{{else}}-1{{end}}
+}
+{{if .OmitMethod $method}}*/{{end}}
+
+{{$method := "Values"}}
+{{if .OmitMethod $method}}/*{{end}}
+func (zz{{.GoName}}) {{$method}}(t *{{.GoName}}) []interface{} {
+	return []interface{}{ {{range $k, $v := .Column}}{{if $k}},{{end}}t.{{$v.GoName}}{{end}} }
+}
+{{if .OmitMethod $method}}*/{{end}}
+
+{{$method := "Pointers"}}
+{{if .OmitMethod $method}}/*{{end}}
+func (zz{{.GoName}}) {{$method}}(t *{{.GoName}}) []interface{} {
+	return []interface{}{ {{range $k, $v := .Column}}{{if $k}},{{end}}&t.{{$v.GoName}}{{end}} }
+}
+{{if .OmitMethod $method}}*/{{end}}
+
+{{$method := "Mode"}}
+{{if .OmitMethod $method}}/*{{end}}
+func (zz{{.GoName}}) {{$method}}() sqruct.Mode {
+	return sqruct.{{.Mode}}
+}
+{{if .OmitMethod $method}}*/{{end}}
+
 `

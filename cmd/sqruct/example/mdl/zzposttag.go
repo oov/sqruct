@@ -13,6 +13,7 @@ import "github.com/oov/sqruct"
 // 		PRIMARY KEY (postid, tagid)
 // 	);
 type PostTag struct {
+	schema zzPostTag
 	PostID int64 `mdl:"fk,notnull"`
 	TagID  int64 `mdl:"fk,notnull"`
 }
@@ -59,33 +60,9 @@ func (t *PostTag) GetTag(db sqruct.DB) (*Tag, error) {
 
 }
 
-func (t *PostTag) TableName() string {
-	return "posttag"
-}
-
-func (t *PostTag) Columns() []string {
-	return []string{"postid", "tagid"}
-}
-
-func (t *PostTag) Values() []interface{} {
-	return []interface{}{t.PostID, t.TagID}
-}
-
-func (t *PostTag) ValuePointers() []interface{} {
-	return []interface{}{&t.PostID, &t.TagID}
-}
-
-func (t *PostTag) AutoIncrementColumnIndex() int {
-	return -1
-}
-
-func (t *PostTag) SqructMode() sqruct.Mode {
-	return sqruct.SQLite
-}
-
 func (t *PostTag) Insert(db sqruct.DB) error {
 
-	_, err := t.SqructMode().Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
+	_, err := t.schema.Mode().Insert(db, t.schema.TableName(), t.schema.Columns(), t.schema.Values(t), t.schema.AutoIncrementColumnIndex())
 	return err
 
 }
@@ -103,4 +80,31 @@ func (t *PostTag) Delete(db sqruct.DB) error {
 	)
 	return err
 
+}
+
+// zzPostTag represents PostTag table schema.
+type zzPostTag struct{}
+
+func (zzPostTag) TableName() string {
+	return "posttag"
+}
+
+func (zzPostTag) Columns() []string {
+	return []string{"postid", "tagid"}
+}
+
+func (zzPostTag) AutoIncrementColumnIndex() int {
+	return -1
+}
+
+func (zzPostTag) Values(t *PostTag) []interface{} {
+	return []interface{}{t.PostID, t.TagID}
+}
+
+func (zzPostTag) Pointers(t *PostTag) []interface{} {
+	return []interface{}{&t.PostID, &t.TagID}
+}
+
+func (zzPostTag) Mode() sqruct.Mode {
+	return sqruct.SQLite
 }

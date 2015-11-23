@@ -14,8 +14,9 @@ import (
 // 		name VARCHAR(30) NOT NULL UNIQUE
 // 	);
 type Account struct {
-	ID   int64  `mdl:"pk,notnull,uniq,default,autoincr"`
-	Name string `mdl:"notnull,uniq"`
+	schema zzAccount
+	ID     int64  `mdl:"pk,notnull,uniq,default,autoincr"`
+	Name   string `mdl:"notnull,uniq"`
 }
 
 func GetAccount(db sqruct.DB, id int64) (*Account, error) {
@@ -61,33 +62,9 @@ func (t *Account) SelectPost(db sqruct.DB) ([]Post, error) {
 
 }
 
-func (t *Account) TableName() string {
-	return "account"
-}
-
-func (t *Account) Columns() []string {
-	return []string{"id", "name"}
-}
-
-func (t *Account) Values() []interface{} {
-	return []interface{}{t.ID, t.Name}
-}
-
-func (t *Account) ValuePointers() []interface{} {
-	return []interface{}{&t.ID, &t.Name}
-}
-
-func (t *Account) AutoIncrementColumnIndex() int {
-	return 0
-}
-
-func (t *Account) SqructMode() sqruct.Mode {
-	return sqruct.SQLite
-}
-
 func (t *Account) Insert(db sqruct.DB) error {
 
-	i, err := t.SqructMode().Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
+	i, err := t.schema.Mode().Insert(db, t.schema.TableName(), t.schema.Columns(), t.schema.Values(t), t.schema.AutoIncrementColumnIndex())
 	if err != nil {
 		return err
 	}
@@ -117,4 +94,31 @@ func (t *Account) Delete(db sqruct.DB) error {
 	)
 	return err
 
+}
+
+// zzAccount represents Account table schema.
+type zzAccount struct{}
+
+func (zzAccount) TableName() string {
+	return "account"
+}
+
+func (zzAccount) Columns() []string {
+	return []string{"id", "name"}
+}
+
+func (zzAccount) AutoIncrementColumnIndex() int {
+	return 0
+}
+
+func (zzAccount) Values(t *Account) []interface{} {
+	return []interface{}{t.ID, t.Name}
+}
+
+func (zzAccount) Pointers(t *Account) []interface{} {
+	return []interface{}{&t.ID, &t.Name}
+}
+
+func (zzAccount) Mode() sqruct.Mode {
+	return sqruct.SQLite
 }
