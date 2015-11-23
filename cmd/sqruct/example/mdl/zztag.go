@@ -2,11 +2,7 @@
 
 package mdl
 
-import (
-	"database/sql"
-
-	"github.com/oov/sqruct"
-)
+import "github.com/oov/sqruct"
 
 // Tag represents the following table.
 // 	CREATE TABLE tag(
@@ -44,7 +40,7 @@ func (t *Tag) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 	}
 	defer r.Close()
 
-	var ot []PostTag
+	ot := []PostTag{}
 	for r.Next() {
 		var e PostTag
 		if err = r.Scan(&e.PostID, &e.TagID); err != nil {
@@ -54,9 +50,6 @@ func (t *Tag) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 	}
 	if err = r.Err(); err != nil {
 		return nil, err
-	}
-	if ot == nil {
-		return nil, sql.ErrNoRows
 	}
 	return ot, nil
 

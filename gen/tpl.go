@@ -71,7 +71,7 @@ func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) ([]{{$fk.Table.GoName}}, error
   }
 	defer r.Close()
 
-  var ot []{{$fk.Table.GoName}}
+	ot := []{{$fk.Table.GoName}}{}
 	for r.Next() {
 		var e {{$fk.Table.GoName}}
 		if err = r.Scan({{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}&e.{{$v.GoName}}{{end}}); err != nil {
@@ -81,9 +81,6 @@ func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) ([]{{$fk.Table.GoName}}, error
 	}
 	if err = r.Err(); err != nil {
 		return nil, err
-	}
-	if ot == nil {
-		return nil, sql.ErrNoRows
 	}
 	return ot, nil
 

@@ -2,11 +2,7 @@
 
 package mdl
 
-import (
-	"database/sql"
-
-	"github.com/oov/sqruct"
-)
+import "github.com/oov/sqruct"
 
 // Account represents the following table.
 // 	CREATE TABLE account(
@@ -44,7 +40,7 @@ func (t *Account) SelectPost(db sqruct.DB) ([]Post, error) {
 	}
 	defer r.Close()
 
-	var ot []Post
+	ot := []Post{}
 	for r.Next() {
 		var e Post
 		if err = r.Scan(&e.ID, &e.AccountID, &e.At, &e.Message); err != nil {
@@ -54,9 +50,6 @@ func (t *Account) SelectPost(db sqruct.DB) ([]Post, error) {
 	}
 	if err = r.Err(); err != nil {
 		return nil, err
-	}
-	if ot == nil {
-		return nil, sql.ErrNoRows
 	}
 	return ot, nil
 

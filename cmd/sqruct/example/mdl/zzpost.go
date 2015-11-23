@@ -3,7 +3,6 @@
 package mdl
 
 import (
-	"database/sql"
 	"time"
 
 	"github.com/oov/sqruct"
@@ -64,7 +63,7 @@ func (t *Post) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 	}
 	defer r.Close()
 
-	var ot []PostTag
+	ot := []PostTag{}
 	for r.Next() {
 		var e PostTag
 		if err = r.Scan(&e.PostID, &e.TagID); err != nil {
@@ -74,9 +73,6 @@ func (t *Post) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 	}
 	if err = r.Err(); err != nil {
 		return nil, err
-	}
-	if ot == nil {
-		return nil, sql.ErrNoRows
 	}
 	return ot, nil
 
