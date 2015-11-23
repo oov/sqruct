@@ -26,54 +26,28 @@ type Post struct {
 
 func GetPost(db sqruct.DB, id int64) (*Post, error) {
 
-	r, err := db.Query(
+	var t Post
+	err := db.QueryRow(
 		"SELECT id, accountid, at, message FROM post WHERE (id = ?)",
 		id,
-	)
+	).Scan(&t.ID, &t.AccountID, &t.At, &t.Message)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
-
-	if !r.Next() {
-		if err = r.Err(); err != nil {
-			return nil, err
-		}
-		return nil, sql.ErrNoRows
-	}
-
-	var t Post
-	if err = r.Scan(&t.ID, &t.AccountID, &t.At, &t.Message); err != nil {
-		return nil, err
-	}
-
 	return &t, nil
 
 }
 
 func (t *Post) GetAccount(db sqruct.DB) (*Account, error) {
 
-	r, err := db.Query(
+	var ot Account
+	err := db.QueryRow(
 		"SELECT id, name FROM account WHERE (id = ?)",
 		t.AccountID,
-	)
+	).Scan(&ot.ID, &ot.Name)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
-
-	if !r.Next() {
-		if err = r.Err(); err != nil {
-			return nil, err
-		}
-		return nil, sql.ErrNoRows
-	}
-
-	var ot Account
-	if err = r.Scan(&ot.ID, &ot.Name); err != nil {
-		return nil, err
-	}
-
 	return &ot, nil
 
 }

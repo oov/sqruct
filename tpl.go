@@ -24,27 +24,14 @@ type {{.GoName}} struct {
 {{if .OmitMethod $method}}/*{{end}}
 func {{$method}}(db sqruct.DB{{range $k, $v := .PrimaryKey.Column}}, {{$v.SQLName}} {{$v.GoStructFieldType}}{{end}}) (*{{.GoName}}, error) {
 	{{$g := .Mode.PlaceholderGenerator}}
-  r, err := db.Query(
+	var t {{.GoName}}
+  err := db.QueryRow(
 		"SELECT {{range $k, $v := .Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}} FROM {{.SQLName}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = {{$g.Placeholder}}){{end}}",
 		{{range $k, $v := .PrimaryKey.Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}},
-	)
-  if err != nil {
+	).Scan({{range $k, $v := .Column}}{{if $k}}, {{end}}&t.{{$v.GoName}}{{end}})
+	if err != nil {
   	return nil, err
   }
-	defer r.Close()
-
-	if !r.Next() {
-		if err = r.Err(); err != nil {
-			return nil, err
-		}
-		return nil, sql.ErrNoRows
-	}
-
-  var t {{.GoName}}
-	if err = r.Scan({{range $k, $v := .Column}}{{if $k}}, {{end}}&t.{{$v.GoName}}{{end}}); err != nil {
-  	return nil, err
-  }
-
   return &t, nil
 
 }
@@ -57,27 +44,14 @@ func {{$method}}(db sqruct.DB{{range $k, $v := .PrimaryKey.Column}}, {{$v.SQLNam
 {{if $t.OmitMethod $method}}/*{{end}}
 func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) (*{{$fk.Table.GoName}}, error) {
 	{{$g := $t.Mode.PlaceholderGenerator}}
-  r, err := db.Query(
+	var ot {{$fk.Table.GoName}}
+  err := db.QueryRow(
 		"SELECT {{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}} FROM {{$fk.Table.SQLName}} WHERE {{range $k, $v := $fk.Column}}{{if $k}}AND{{end}}({{$v.Other.SQLName}} = {{$g.Placeholder}}){{end}}",
 		{{range $k, $v := $fk.Column}}{{if $k}}, {{end}}t.{{$v.Self.GoName}}{{end}},
-	)
-  if err != nil {
+	).Scan({{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}&ot.{{$v.GoName}}{{end}})
+	if err != nil {
   	return nil, err
   }
-	defer r.Close()
-
-	if !r.Next() {
-		if err = r.Err(); err != nil {
-			return nil, err
-		}
-		return nil, sql.ErrNoRows
-	}
-
-  var ot {{$fk.Table.GoName}}
-	if err = r.Scan({{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}&ot.{{$v.GoName}}{{end}}); err != nil {
-  	return nil, err
-  }
-
   return &ot, nil
 
 }
@@ -87,7 +61,7 @@ func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) (*{{$fk.Table.GoName}}, error)
 {{if $t.OmitMethod $method}}/*{{end}}
 func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) ([]{{$fk.Table.GoName}}, error) {
 	{{$g := $t.Mode.PlaceholderGenerator}}
-  r, err := db.Query(
+	r, err := db.Query(
 		"SELECT {{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}} FROM {{$fk.Table.SQLName}} WHERE {{range $k, $v := $fk.Column}}{{if $k}}AND{{end}}({{$v.Other.SQLName}} = {{$g.Placeholder}}){{end}}",
 		{{range $k, $v := $fk.Column}}{{if $k}}, {{end}}t.{{$v.Self.GoName}}{{end}},
 	)

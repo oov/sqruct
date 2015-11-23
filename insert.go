@@ -6,6 +6,7 @@ import "database/sql"
 type DB interface {
 	Exec(query string, args ...interface{}) (sql.Result, error)
 	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
 }
 
 // buildInsert builds SQL such as "INSERT INTO table (column1, column2) VALUES (?, ?)".
@@ -87,20 +88,7 @@ func postgresInsert(db DB, table string, columns []string, values []interface{},
 
 	qb = append(qb, " RETURNING "...)
 	qb = append(qb, columns[autoIncrColumn]...)
-	r, err := db.Query(string(qb), values...)
-	if err != nil {
-		return 0, err
-	}
-	defer r.Close()
-
-	if !r.Next() {
-		if err = r.Err(); err != nil {
-			return 0, err
-		}
-		return 0, sql.ErrNoRows
-	}
-
 	var i int64
-	err = r.Scan(&i)
+	err := db.QueryRow(string(qb), values...).Scan(&i)
 	return i, err
 }

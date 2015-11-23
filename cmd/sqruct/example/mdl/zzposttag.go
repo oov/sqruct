@@ -2,11 +2,7 @@
 
 package mdl
 
-import (
-	"database/sql"
-
-	"github.com/oov/sqruct"
-)
+import "github.com/oov/sqruct"
 
 // PostTag represents the following table.
 // 	CREATE TABLE posttag(
@@ -23,81 +19,42 @@ type PostTag struct {
 
 func GetPostTag(db sqruct.DB, postid int64, tagid int64) (*PostTag, error) {
 
-	r, err := db.Query(
+	var t PostTag
+	err := db.QueryRow(
 		"SELECT postid, tagid FROM posttag WHERE (postid = ?)AND(tagid = ?)",
 		postid, tagid,
-	)
+	).Scan(&t.PostID, &t.TagID)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
-
-	if !r.Next() {
-		if err = r.Err(); err != nil {
-			return nil, err
-		}
-		return nil, sql.ErrNoRows
-	}
-
-	var t PostTag
-	if err = r.Scan(&t.PostID, &t.TagID); err != nil {
-		return nil, err
-	}
-
 	return &t, nil
 
 }
 
 func (t *PostTag) GetPost(db sqruct.DB) (*Post, error) {
 
-	r, err := db.Query(
+	var ot Post
+	err := db.QueryRow(
 		"SELECT id, accountid, at, message FROM post WHERE (id = ?)",
 		t.PostID,
-	)
+	).Scan(&ot.ID, &ot.AccountID, &ot.At, &ot.Message)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
-
-	if !r.Next() {
-		if err = r.Err(); err != nil {
-			return nil, err
-		}
-		return nil, sql.ErrNoRows
-	}
-
-	var ot Post
-	if err = r.Scan(&ot.ID, &ot.AccountID, &ot.At, &ot.Message); err != nil {
-		return nil, err
-	}
-
 	return &ot, nil
 
 }
 
 func (t *PostTag) GetTag(db sqruct.DB) (*Tag, error) {
 
-	r, err := db.Query(
+	var ot Tag
+	err := db.QueryRow(
 		"SELECT id, name FROM tag WHERE (id = ?)",
 		t.TagID,
-	)
+	).Scan(&ot.ID, &ot.Name)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
-
-	if !r.Next() {
-		if err = r.Err(); err != nil {
-			return nil, err
-		}
-		return nil, sql.ErrNoRows
-	}
-
-	var ot Tag
-	if err = r.Scan(&ot.ID, &ot.Name); err != nil {
-		return nil, err
-	}
-
 	return &ot, nil
 
 }

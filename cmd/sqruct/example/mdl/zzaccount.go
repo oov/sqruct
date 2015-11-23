@@ -20,27 +20,14 @@ type Account struct {
 
 func GetAccount(db sqruct.DB, id int64) (*Account, error) {
 
-	r, err := db.Query(
+	var t Account
+	err := db.QueryRow(
 		"SELECT id, name FROM account WHERE (id = ?)",
 		id,
-	)
+	).Scan(&t.ID, &t.Name)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
-
-	if !r.Next() {
-		if err = r.Err(); err != nil {
-			return nil, err
-		}
-		return nil, sql.ErrNoRows
-	}
-
-	var t Account
-	if err = r.Scan(&t.ID, &t.Name); err != nil {
-		return nil, err
-	}
-
 	return &t, nil
 
 }

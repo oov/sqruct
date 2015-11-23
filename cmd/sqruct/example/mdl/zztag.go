@@ -20,27 +20,14 @@ type Tag struct {
 
 func GetTag(db sqruct.DB, id int64) (*Tag, error) {
 
-	r, err := db.Query(
+	var t Tag
+	err := db.QueryRow(
 		"SELECT id, name FROM tag WHERE (id = ?)",
 		id,
-	)
+	).Scan(&t.ID, &t.Name)
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
-
-	if !r.Next() {
-		if err = r.Err(); err != nil {
-			return nil, err
-		}
-		return nil, sql.ErrNoRows
-	}
-
-	var t Tag
-	if err = r.Scan(&t.ID, &t.Name); err != nil {
-		return nil, err
-	}
-
 	return &t, nil
 
 }
