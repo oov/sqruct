@@ -97,9 +97,13 @@ func (t *Post) AutoIncrementColumnIndex() int {
 	return 0
 }
 
+func (t *Post) SqructMode() sqruct.Mode {
+	return sqruct.SQLite
+}
+
 func (t *Post) Insert(db sqruct.DB) error {
 
-	i, err := sqruct.SQLite.Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
+	i, err := t.SqructMode().Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
 	if err != nil {
 		return err
 	}

@@ -119,12 +119,19 @@ func (t *{{.GoName}}) {{$method}}() int {
 }
 {{if .OmitMethod $method}}*/{{end}}
 
+{{$method := "SqructMode"}}
+{{if .OmitMethod $method}}/*{{end}}
+func (t *{{.GoName}}) {{$method}}() sqruct.Mode {
+	return sqruct.{{.Mode}}
+}
+{{if .OmitMethod $method}}*/{{end}}
+
 {{$method := "Insert"}}
 {{if .OmitMethod $method}}/*{{end}}
 func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
 	{{$aicol := .AutoIncrementColumn}}
 	{{if $aicol}}
-		i, err := sqruct.{{.Mode}}.Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
+		i, err := t.SqructMode().Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
 		if err != nil {
 			return err
 		}
@@ -133,7 +140,7 @@ func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
 		}
 		return nil
 	{{else}}
-		_, err := sqruct.{{.Mode}}.Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
+		_, err := t.SqructMode().Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
 		return err
 	{{end}}
 }

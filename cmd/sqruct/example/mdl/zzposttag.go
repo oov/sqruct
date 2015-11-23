@@ -75,9 +75,13 @@ func (t *PostTag) AutoIncrementColumnIndex() int {
 	return -1
 }
 
+func (t *PostTag) SqructMode() sqruct.Mode {
+	return sqruct.SQLite
+}
+
 func (t *PostTag) Insert(db sqruct.DB) error {
 
-	_, err := sqruct.SQLite.Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
+	_, err := t.SqructMode().Insert(db, t.TableName(), t.Columns(), t.Values(), t.AutoIncrementColumnIndex())
 	return err
 
 }
