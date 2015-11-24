@@ -2,10 +2,10 @@ package sqruct
 
 import "strings"
 
-// PlaceholderGenerator generates placeholders for SQL statements.
-type PlaceholderGenerator interface {
-	// Placeholder generates next placeholder.
-	Placeholder() string
+// Placeholder generates placeholders for SQL statements.
+type Placeholder interface {
+	// Next generates next placeholder.
+	Next() string
 	// Len returns length of placeholder at given index.
 	Len(index int) int
 	// Rebind replaces from '?' to default placeholder.
@@ -13,21 +13,21 @@ type PlaceholderGenerator interface {
 	Rebind(string) string
 }
 
-type genericPlaceholderGenerator struct{}
+type genericPlaceholder struct{}
 
-func (g genericPlaceholderGenerator) Placeholder() string    { return "?" }
-func (g genericPlaceholderGenerator) Len(int) int            { return 1 }
-func (g genericPlaceholderGenerator) Rebind(s string) string { return s }
+func (*genericPlaceholder) Next() string           { return "?" }
+func (*genericPlaceholder) Len(int) int            { return 1 }
+func (*genericPlaceholder) Rebind(s string) string { return s }
 
-type postgresPlaceholderGenerator struct {
+type postgresPlaceholder struct {
 	c int
 }
 
-func (g *postgresPlaceholderGenerator) Placeholder() string {
-	g.c++
+func (ph *postgresPlaceholder) Next() string {
+	ph.c++
 
 	var buf [8]byte
-	x := g.c
+	x := ph.c
 	i := len(buf) - 1
 	for x > 9 {
 		buf[i] = byte(x%10 + '0')
@@ -40,7 +40,7 @@ func (g *postgresPlaceholderGenerator) Placeholder() string {
 	return string(buf[i:])
 }
 
-func (g *postgresPlaceholderGenerator) Len(index int) int {
+func (ph *postgresPlaceholder) Len(index int) int {
 	if index < 0 {
 		panic("logic error")
 	}
@@ -65,7 +65,7 @@ func (g *postgresPlaceholderGenerator) Len(index int) int {
 	return 8
 }
 
-func (g *postgresPlaceholderGenerator) Rebind(s string) string {
+func (ph *postgresPlaceholder) Rebind(s string) string {
 	r := make([]byte, 0, len(s)+8)
 	var p int
 	for {
@@ -75,7 +75,7 @@ func (g *postgresPlaceholderGenerator) Rebind(s string) string {
 			break
 		}
 		r = append(r, s[:p]...)
-		r = append(r, g.Placeholder()...)
+		r = append(r, ph.Next()...)
 		s = s[p+1:]
 	}
 	return string(r)

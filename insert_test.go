@@ -67,7 +67,7 @@ func TestBuildInsert(t *testing.T) {
 		},
 	}
 	for i, v := range datas {
-		q := buildInsert(v.Table, v.Columns, v.AutoIncrCol, v.Mode.DefaultValueKeyword(), v.Mode.PlaceholderGenerator())
+		q := buildInsert(v.Table, v.Columns, v.AutoIncrCol, v.Mode.DefaultValueKeyword(), v.Mode.Placeholder())
 		if string(q) != v.Output {
 			t.Errorf("buildInsertQueryData[%d] want %q got %q", i, v.Output, string(q))
 		}
@@ -79,7 +79,7 @@ func TestBuildInsert(t *testing.T) {
 
 func BenchmarkBuildInsert(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		buildInsert("hello", []string{"column1", "column2", "column3"}, 2, "DEFAULT", genericPlaceholderGenerator{})
+		buildInsert("hello", []string{"column1", "column2", "column3"}, 2, "DEFAULT", genericPlaceholder{})
 	}
 }
 
@@ -211,7 +211,10 @@ func TestAutoIncrementOnInsert(t *testing.T) {
 						for i := range rr {
 							rrp[i] = &rr[i]
 						}
-						err = db.QueryRow(mode.PlaceholderGenerator().Rebind(`SELECT * FROM tbl WHERE `+columns[test.AutoIncrementColumnIndex]+` = ?`), v.Record[test.AutoIncrementColumnIndex]).Scan(rrp...)
+						err = db.QueryRow(
+							mode.Placeholder().Rebind(`SELECT * FROM tbl WHERE `+columns[test.AutoIncrementColumnIndex]+` = ?`),
+							v.Record[test.AutoIncrementColumnIndex],
+						).Scan(rrp...)
 						if err != nil {
 							t.Fatalf("testSet[%d] %s SELECT failed: %v", testSetIdx, mode, err)
 						}

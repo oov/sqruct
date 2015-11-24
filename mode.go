@@ -14,8 +14,8 @@ type Mode interface {
 	IsAutoIncrement(col string) bool
 	// Insert executes insert statement on db.
 	Insert(db DB, table string, columns []string, values []interface{}, autoIncrColumn int) (int64, error)
-	// PlaceholderGenerator creates placeholder generator that is used in SQL statements.
-	PlaceholderGenerator() PlaceholderGenerator
+	// Placeholder creates placeholder generator that is used in SQL statements.
+	Placeholder() Placeholder
 }
 
 var (
@@ -35,11 +35,11 @@ func (mySQL) IsAutoIncrement(col string) bool {
 }
 
 func (m mySQL) Insert(db DB, table string, columns []string, values []interface{}, autoIncrColumn int) (int64, error) {
-	return genericInsert(db, table, columns, values, autoIncrColumn, m.DefaultValueKeyword(), m.PlaceholderGenerator())
+	return genericInsert(db, table, columns, values, autoIncrColumn, m.DefaultValueKeyword(), m.Placeholder())
 }
 
-func (mySQL) PlaceholderGenerator() PlaceholderGenerator {
-	return genericPlaceholderGenerator{}
+func (mySQL) Placeholder() Placeholder {
+	return &genericPlaceholder{}
 }
 
 type postgreSQL struct{}
@@ -53,11 +53,11 @@ func (postgreSQL) IsAutoIncrement(col string) bool {
 }
 
 func (m postgreSQL) Insert(db DB, table string, columns []string, values []interface{}, autoIncrColumn int) (int64, error) {
-	return postgresInsert(db, table, columns, values, autoIncrColumn, m.DefaultValueKeyword(), m.PlaceholderGenerator())
+	return postgresInsert(db, table, columns, values, autoIncrColumn, m.DefaultValueKeyword(), m.Placeholder())
 }
 
-func (postgreSQL) PlaceholderGenerator() PlaceholderGenerator {
-	return &postgresPlaceholderGenerator{}
+func (postgreSQL) Placeholder() Placeholder {
+	return &postgresPlaceholder{}
 }
 
 type sqlite struct{}
@@ -71,9 +71,9 @@ func (sqlite) IsAutoIncrement(col string) bool {
 }
 
 func (m sqlite) Insert(db DB, table string, columns []string, values []interface{}, autoIncrColumn int) (int64, error) {
-	return genericInsert(db, table, columns, values, autoIncrColumn, m.DefaultValueKeyword(), m.PlaceholderGenerator())
+	return genericInsert(db, table, columns, values, autoIncrColumn, m.DefaultValueKeyword(), m.Placeholder())
 }
 
-func (sqlite) PlaceholderGenerator() PlaceholderGenerator {
-	return genericPlaceholderGenerator{}
+func (sqlite) Placeholder() Placeholder {
+	return &genericPlaceholder{}
 }

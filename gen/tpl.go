@@ -24,10 +24,10 @@ type {{.GoName}} struct {
 {{$method := print "Get" .GoName}}
 {{if .OmitMethod $method}}/*{{end}}
 func {{$method}}(db sqruct.DB{{range $k, $v := .PrimaryKey.Column}}, {{$v.SQLName}} {{$v.GoStructFieldType}}{{end}}) (*{{.GoName}}, error) {
-	{{$g := .Mode.PlaceholderGenerator}}
+	{{$ph := .Mode.Placeholder}}
 	var t {{.GoName}}
   err := db.QueryRow(
-		"SELECT {{range $k, $v := .Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}} FROM {{.SQLName}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = {{$g.Placeholder}}){{end}}",
+		"SELECT {{range $k, $v := .Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}} FROM {{.SQLName}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = {{$ph.Next}}){{end}}",
 		{{range $k, $v := .PrimaryKey.Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}},
 	).Scan({{range $k, $v := .Column}}{{if $k}}, {{end}}&t.{{$v.GoName}}{{end}})
 	if err != nil {
@@ -44,10 +44,10 @@ func {{$method}}(db sqruct.DB{{range $k, $v := .PrimaryKey.Column}}, {{$v.SQLNam
 {{$method := print "Get" $fk.Table.GoName}}
 {{if $t.OmitMethod $method}}/*{{end}}
 func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) (*{{$fk.Table.GoName}}, error) {
-	{{$g := $t.Mode.PlaceholderGenerator}}
+	{{$ph := $t.Mode.Placeholder}}
 	var ot {{$fk.Table.GoName}}
   err := db.QueryRow(
-		"SELECT {{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}} FROM {{$fk.Table.SQLName}} WHERE {{range $k, $v := $fk.Column}}{{if $k}}AND{{end}}({{$v.Other.SQLName}} = {{$g.Placeholder}}){{end}}",
+		"SELECT {{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}} FROM {{$fk.Table.SQLName}} WHERE {{range $k, $v := $fk.Column}}{{if $k}}AND{{end}}({{$v.Other.SQLName}} = {{$ph.Next}}){{end}}",
 		{{range $k, $v := $fk.Column}}{{if $k}}, {{end}}t.{{$v.Self.GoName}}{{end}},
 	).Scan({{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}&ot.{{$v.GoName}}{{end}})
 	if err != nil {
@@ -61,9 +61,9 @@ func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) (*{{$fk.Table.GoName}}, error)
 {{$method := print "Select" $fk.Table.GoName}}
 {{if $t.OmitMethod $method}}/*{{end}}
 func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) ([]{{$fk.Table.GoName}}, error) {
-	{{$g := $t.Mode.PlaceholderGenerator}}
+	{{$ph := $t.Mode.Placeholder}}
 	r, err := db.Query(
-		"SELECT {{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}} FROM {{$fk.Table.SQLName}} WHERE {{range $k, $v := $fk.Column}}{{if $k}}AND{{end}}({{$v.Other.SQLName}} = {{$g.Placeholder}}){{end}}",
+		"SELECT {{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}} FROM {{$fk.Table.SQLName}} WHERE {{range $k, $v := $fk.Column}}{{if $k}}AND{{end}}({{$v.Other.SQLName}} = {{$ph.Next}}){{end}}",
 		{{range $k, $v := $fk.Column}}{{if $k}}, {{end}}t.{{$v.Self.GoName}}{{end}},
 	)
   if err != nil {
@@ -112,9 +112,9 @@ func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
 {{if .OmitMethod $method}}/*{{end}}
 {{if .NonPrimaryKeys}}
 func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
-	{{$g := .Mode.PlaceholderGenerator}}
+	{{$ph := .Mode.Placeholder}}
 	_, err := db.Exec(
-		"UPDATE {{.SQLName}} SET {{range $k, $v := .NonPrimaryKeys}}{{if $k}}, {{end}}{{$v.SQLName}} = {{$g.Placeholder}}{{end}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = {{$g.Placeholder}}){{end}}",
+		"UPDATE {{.SQLName}} SET {{range $k, $v := .NonPrimaryKeys}}{{if $k}}, {{end}}{{$v.SQLName}} = {{$ph.Next}}{{end}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = {{$ph.Next}}){{end}}",
 		{{range $k, $v := .NonPrimaryKeys}}{{if $k}}, {{end}}t.{{$v.GoName}}{{end}},
 		{{range $k, $v := .PrimaryKey.Column}}{{if $k}}, {{end}}t.{{$v.GoName}}{{end}},
 	)
@@ -132,9 +132,9 @@ func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
 {{$method := "Delete"}}
 {{if .OmitMethod $method}}/*{{end}}
 func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
-	{{$g := .Mode.PlaceholderGenerator}}
+	{{$ph := .Mode.Placeholder}}
 	_, err := db.Exec(
-		"DELETE FROM {{.SQLName}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = {{$g.Placeholder}}){{end}}",
+		"DELETE FROM {{.SQLName}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = {{$ph.Next}}){{end}}",
 		{{range $k, $v := .PrimaryKey.Column}}{{if $k}}, {{end}}t.{{$v.GoName}}{{end}},
 	)
 	return err

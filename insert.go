@@ -10,7 +10,7 @@ type DB interface {
 }
 
 // buildInsert builds SQL such as "INSERT INTO table (column1, column2) VALUES (?, ?)".
-func buildInsert(table string, columns []string, autoIncrCol int, defValue string, g PlaceholderGenerator) []byte {
+func buildInsert(table string, columns []string, autoIncrCol int, defValue string, ph Placeholder) []byte {
 	// calculate max length (including RETURNING clause)
 	l := len("INSERT INTO  () VALUES () RETURNING ") + len(table)
 	for i, c := range columns {
@@ -22,7 +22,7 @@ func buildInsert(table string, columns []string, autoIncrCol int, defValue strin
 			l += len(c)*2 + len(defValue)
 		} else {
 			// len(c) for columns + Placeholder length for values
-			l += len(c) + g.Len(i)
+			l += len(c) + ph.Len(i)
 		}
 	}
 
@@ -44,7 +44,7 @@ func buildInsert(table string, columns []string, autoIncrCol int, defValue strin
 		if i == autoIncrCol {
 			q = append(q, defValue...)
 		} else {
-			q = append(q, g.Placeholder()...)
+			q = append(q, ph.Next()...)
 		}
 	}
 	q = append(q, ')')
@@ -65,14 +65,14 @@ func dropColumn(values []interface{}, index int) []interface{} {
 }
 
 func genericInsert(db DB, table string, columns []string, values []interface{},
-	autoIncrColumn int, defValue string, g PlaceholderGenerator) (int64, error) {
+	autoIncrColumn int, defValue string, ph Placeholder) (int64, error) {
 	if IsZero(values[autoIncrColumn]) {
 		// Drop values[autoIncrColumn] becuase used DEFAULT in this case.
 		values = dropColumn(values, autoIncrColumn)
 	} else {
 		autoIncrColumn = -1
 	}
-	qb := buildInsert(table, columns, autoIncrColumn, defValue, g)
+	qb := buildInsert(table, columns, autoIncrColumn, defValue, ph)
 	r, err := db.Exec(string(qb), values...)
 	if err != nil {
 		return 0, err
@@ -84,14 +84,14 @@ func genericInsert(db DB, table string, columns []string, values []interface{},
 }
 
 func postgresInsert(db DB, table string, columns []string, values []interface{},
-	autoIncrColumn int, defValue string, g PlaceholderGenerator) (int64, error) {
+	autoIncrColumn int, defValue string, ph Placeholder) (int64, error) {
 	if IsZero(values[autoIncrColumn]) {
 		// Drop values[autoIncrColumn] because used DEFAULT in this case.
 		values = dropColumn(values, autoIncrColumn)
 	} else {
 		autoIncrColumn = -1
 	}
-	qb := buildInsert(table, columns, autoIncrColumn, defValue, g)
+	qb := buildInsert(table, columns, autoIncrColumn, defValue, ph)
 	if autoIncrColumn == -1 {
 		_, err := db.Exec(string(qb), values...)
 		return 0, err

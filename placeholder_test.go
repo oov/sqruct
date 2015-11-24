@@ -30,7 +30,7 @@ func TestPlaceholderGeneratorRebind(t *testing.T) {
 		},
 	}
 	for i, v := range tests {
-		if r := v.m.PlaceholderGenerator().Rebind(v.q); r != v.o {
+		if r := v.m.Placeholder().Rebind(v.q); r != v.o {
 			t.Errorf("tests[%d] %s want %q got %q", i, v.m, v.o, r)
 		}
 	}
