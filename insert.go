@@ -51,12 +51,24 @@ func buildInsert(table string, columns []string, autoIncrCol int, defValue strin
 	return q
 }
 
+func dropColumn(values []interface{}, index int) []interface{} {
+	if index == 0 {
+		return values[1:]
+	}
+	if index == len(values)-1 {
+		return values[:len(values)-1]
+	}
+	v := make([]interface{}, len(values)-1)
+	copy(v, values[:index])
+	copy(v[index:], values[index+1:])
+	return v
+}
+
 func genericInsert(db DB, table string, columns []string, values []interface{},
 	autoIncrColumn int, defValue string, g PlaceholderGenerator) (int64, error) {
 	if IsZero(values[autoIncrColumn]) {
 		// Drop values[autoIncrColumn] becuase used DEFAULT in this case.
-		copy(values[autoIncrColumn:], values[autoIncrColumn+1:])
-		values = values[:len(values)-1]
+		values = dropColumn(values, autoIncrColumn)
 	} else {
 		autoIncrColumn = -1
 	}
@@ -75,8 +87,7 @@ func postgresInsert(db DB, table string, columns []string, values []interface{},
 	autoIncrColumn int, defValue string, g PlaceholderGenerator) (int64, error) {
 	if IsZero(values[autoIncrColumn]) {
 		// Drop values[autoIncrColumn] because used DEFAULT in this case.
-		copy(values[autoIncrColumn:], values[autoIncrColumn+1:])
-		values = values[:len(values)-1]
+		values = dropColumn(values, autoIncrColumn)
 	} else {
 		autoIncrColumn = -1
 	}
