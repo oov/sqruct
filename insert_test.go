@@ -211,7 +211,7 @@ func TestAutoIncrementOnInsert(t *testing.T) {
 						for i := range rr {
 							rrp[i] = &rr[i]
 						}
-						err = db.QueryRow(mode.Rebind(`SELECT * FROM tbl WHERE `+columns[test.AutoIncrementColumnIndex]+` = ?`), v.Record[test.AutoIncrementColumnIndex]).Scan(rrp...)
+						err = db.QueryRow(mode.PlaceholderGenerator().Rebind(`SELECT * FROM tbl WHERE `+columns[test.AutoIncrementColumnIndex]+` = ?`), v.Record[test.AutoIncrementColumnIndex]).Scan(rrp...)
 						if err != nil {
 							t.Fatalf("testSet[%d] %s SELECT failed: %v", testSetIdx, mode, err)
 						}

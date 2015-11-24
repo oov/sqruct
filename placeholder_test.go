@@ -2,7 +2,7 @@ package sqruct
 
 import "testing"
 
-func TestModeRebind(t *testing.T) {
+func TestPlaceholderGeneratorRebind(t *testing.T) {
 	tests := []struct {
 		q string
 		o string
@@ -30,7 +30,7 @@ func TestModeRebind(t *testing.T) {
 		},
 	}
 	for i, v := range tests {
-		if r := v.m.Rebind(v.q); r != v.o {
+		if r := v.m.PlaceholderGenerator().Rebind(v.q); r != v.o {
 			t.Errorf("tests[%d] %s want %q got %q", i, v.m, v.o, r)
 		}
 	}

@@ -2,7 +2,6 @@ package sqruct
 
 import (
 	"regexp"
-	"strings"
 )
 
 // Mode represents Sqruct processing mode.
@@ -17,8 +16,6 @@ type Mode interface {
 	Insert(db DB, table string, columns []string, values []interface{}, autoIncrColumn int) (int64, error)
 	// PlaceholderGenerator creates placeholder generator that is used in SQL statements.
 	PlaceholderGenerator() PlaceholderGenerator
-	// Rebind replaces from '?' to default placeholder.
-	Rebind(string) string
 }
 
 var (
@@ -45,8 +42,6 @@ func (mySQL) PlaceholderGenerator() PlaceholderGenerator {
 	return genericPlaceholderGenerator{}
 }
 
-func (mySQL) Rebind(s string) string { return s }
-
 type postgreSQL struct{}
 
 func (postgreSQL) String() string { return "PostgreSQL" }
@@ -63,23 +58,6 @@ func (m postgreSQL) Insert(db DB, table string, columns []string, values []inter
 
 func (postgreSQL) PlaceholderGenerator() PlaceholderGenerator {
 	return &postgresPlaceholderGenerator{}
-}
-
-func (m postgreSQL) Rebind(s string) string {
-	g := m.PlaceholderGenerator()
-	r := make([]byte, 0, len(s)+8)
-	var p int
-	for {
-		p = strings.IndexByte(s, '?')
-		if p == -1 {
-			r = append(r, s...)
-			break
-		}
-		r = append(r, s[:p]...)
-		r = append(r, g.Placeholder()...)
-		s = s[p+1:]
-	}
-	return string(r)
 }
 
 type sqlite struct{}
@@ -99,5 +77,3 @@ func (m sqlite) Insert(db DB, table string, columns []string, values []interface
 func (sqlite) PlaceholderGenerator() PlaceholderGenerator {
 	return genericPlaceholderGenerator{}
 }
-
-func (sqlite) Rebind(s string) string { return s }
