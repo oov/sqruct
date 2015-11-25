@@ -78,6 +78,32 @@ func (t *Post) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 
 }
 
+func (t *Post) SelectTag(db sqruct.DB) ([]Tag, []PostTag, error) {
+
+	r, err := db.Query(
+		"SELECT tag.id, tag.name, posttag.postid, posttag.tagid FROM posttag, tag WHERE (posttag.postid = ?)AND(posttag.tagid = tag.id)",
+		t.ID,
+	)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer r.Close()
+
+	ot, rt := []Tag{}, []PostTag{}
+	for r.Next() {
+		var oe Tag
+		var re PostTag
+		if err = r.Scan(&oe.ID, &oe.Name, &re.PostID, &re.TagID); err != nil {
+			return nil, nil, err
+		}
+		ot, rt = append(ot, oe), append(rt, re)
+	}
+	if err = r.Err(); err != nil {
+		return nil, nil, err
+	}
+	return ot, rt, nil
+}
+
 func (t *Post) Insert(db sqruct.DB) error {
 
 	i, err := t.schema.Mode().Insert(db, t.schema.TableName(), t.schema.Columns(), t.schema.Values(t), t.schema.AutoIncrementColumnIndex())

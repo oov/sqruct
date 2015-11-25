@@ -88,6 +88,41 @@ func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) ([]{{$fk.Table.GoName}}, error
 {{if $t.OmitMethod $method}}*/{{end}}
 {{end}}
 {{end}}
+
+{{$t := .}}
+{{range $_, $m2m := .ManyToMany}}
+{{$relTable := $m2m.RelTable}}
+{{$oTable := $m2m.OtherFK.Table}}
+{{$method := print "Select" $oTable.GoName}}
+{{if $t.OmitMethod $method}}/*{{end}}
+func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) ([]{{$oTable.GoName}}, []{{$relTable.GoName}}, error) {
+	{{$ph := $t.Mode.Placeholder}}
+	r, err := db.Query(
+		"SELECT {{range $k, $v := $oTable.Column}}{{if $k}}, {{end}}{{$oTable.SQLName}}.{{$v.SQLName}}{{end}}{{range $k, $v := $relTable.Column}}, {{$relTable.SQLName}}.{{$v.SQLName}}{{end}} FROM {{$relTable.SQLName}}, {{$oTable.SQLName}} WHERE {{range $k, $v := $m2m.MyFK.Column}}{{if $k}}AND{{end}}({{$relTable.SQLName}}.{{$v.Self.SQLName}} = {{$ph.Next}}){{end}}{{range $k, $v := $m2m.OtherFK.Column}}AND({{$relTable.SQLName}}.{{$v.Self.SQLName}} = {{$oTable.SQLName}}.{{$v.Other.SQLName}}){{end}}",
+		{{range $k, $v := $m2m.MyFK.Column}}{{if $k}}, {{end}}t.{{$v.Other.GoName}}{{end}},
+	)
+  if err != nil {
+  	return nil, nil, err
+  }
+	defer r.Close()
+
+	ot, rt := []{{$oTable.GoName}}{}, []{{$relTable.GoName}}{}
+	for r.Next() {
+		var oe {{$oTable.GoName}}
+		var re {{$relTable.GoName}}
+		if err = r.Scan({{range $k, $v := $oTable.Column}}{{if $k}}, {{end}}&oe.{{$v.GoName}}{{end}}{{range $k, $v := $relTable.Column}}, &re.{{$v.GoName}}{{end}}); err != nil {
+  		return nil, nil, err
+  	}
+		ot, rt = append(ot, oe), append(rt, re)
+	}
+	if err = r.Err(); err != nil {
+		return nil, nil, err
+	}
+	return ot, rt, nil
+}
+{{if $t.OmitMethod $method}}*/{{end}}
+{{end}}
+
 {{$method := "Insert"}}
 {{if .OmitMethod $method}}/*{{end}}
 func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {

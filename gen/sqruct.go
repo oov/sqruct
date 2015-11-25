@@ -132,6 +132,12 @@ func (sq *Sqruct) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		}
 	}
 
+	for k := range sq.Table {
+		if err = sq.markManyToMany(sq.Table[k]); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -141,6 +147,7 @@ func (sq *Sqruct) parseTable(name string, ms yaml.MapSlice) (*Table, error) {
 		omitMethod:  map[string]struct{}{},
 		GoName:      name,
 		ColumnAfter: []string{},
+		ManyToMany:  []*ManyToMany{},
 	}
 	for _, v := range ms {
 		switch key, _ := v.Key.(string); key {
@@ -158,6 +165,16 @@ func (sq *Sqruct) parseTable(name string, ms yaml.MapSlice) (*Table, error) {
 				for _, is := range v {
 					s, _ := is.(string)
 					t.ColumnAfter = append(t.ColumnAfter, s)
+				}
+			}
+		case ".m2m":
+			switch v := v.Value.(type) {
+			case string:
+				t.ManyToMany = append(t.ManyToMany, &ManyToMany{s: v})
+			case []interface{}:
+				for _, is := range v {
+					s, _ := is.(string)
+					t.ManyToMany = append(t.ManyToMany, &ManyToMany{s: s})
 				}
 			}
 		case ".omit":
@@ -192,7 +209,7 @@ func (sq *Sqruct) parseTable(name string, ms yaml.MapSlice) (*Table, error) {
 
 func unquote(s string) string {
 	s = strings.TrimSpace(s)
-	if s[0] == '`' || s[0] == '"' || s[0] == '\'' {
+	if len(s) > 2 && (s[0] == '`' || s[0] == '"' || s[0] == '\'') {
 		// TODO(oov): need some intelligent processing
 		return s[1 : len(s)-1]
 	}
@@ -319,5 +336,47 @@ func (sq *Sqruct) registerForeignKey(t *Table, otherTable string, cols []string,
 		rfk.Column = append(rfk.Column, ColumnPair{Self: c.Other, Other: c.Self})
 	}
 	ot.ForeignKey = append(ot.ForeignKey, rfk)
+	return nil
+}
+
+func (sq *Sqruct) markManyToMany(t *Table) error {
+	parserRE := regexp.MustCompile(`(?i)` + namePattern + `\s*\(` + namePattern + `\s*\|\s*` + namePattern + `\)`)
+	for _, m2m := range t.ManyToMany {
+		m := parserRE.FindStringSubmatch(m2m.s)
+		if len(m) == 0 {
+			return fmt.Errorf("could not parse %q in table %q", m2m.s, t.SQLName())
+		}
+
+		relTable, myCols, oCols := unquote(m[1]), splitUnquote(m[2]), splitUnquote(m[3])
+		if m2m.RelTable = sq.TableByName(relTable); m2m.RelTable == nil {
+			return fmt.Errorf("could not find many-to-many relation table %q in table %q", relTable, t.SQLName())
+		}
+
+		cols := []*Column{}
+		for _, s := range myCols {
+			c := m2m.RelTable.ColumnByName(s)
+			if c == nil {
+				return fmt.Errorf("could not find column %q in relation table %q in table %q", s, m2m.RelTable.SQLName(), t.SQLName())
+			}
+			cols = append(cols, c)
+		}
+		m2m.MyFK = m2m.RelTable.ForeignKeyByColumns(cols)
+		if m2m.MyFK == nil {
+			return fmt.Errorf("foreign key (%s) not found in relation table %q in table %q", strings.Join(myCols, ", "), m2m.RelTable.SQLName(), t.SQLName())
+		}
+
+		cols = []*Column{}
+		for _, s := range oCols {
+			c := m2m.RelTable.ColumnByName(s)
+			if c == nil {
+				return fmt.Errorf("could not find column %q in relation table %q in table %q", s, m2m.RelTable.SQLName(), t.SQLName())
+			}
+			cols = append(cols, c)
+		}
+		m2m.OtherFK = m2m.RelTable.ForeignKeyByColumns(cols)
+		if m2m.OtherFK == nil {
+			return fmt.Errorf("foreign key (%s) not found in relation table %q in table %q", strings.Join(oCols, ", "), m2m.RelTable.SQLName(), t.SQLName())
+		}
+	}
 	return nil
 }

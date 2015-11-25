@@ -8,10 +8,12 @@ Post:
   At: time.Time | DATETIME NOT NULL
   Message: string | VARCHAR(8125) NOT NULL
   .after: FOREIGN KEY (accountid) REFERENCES account(id) ON DELETE CASCADE
+  .m2m: posttag(postid | tagid)
 
 Tag:
   ID: int64 | INTEGER PRIMARY KEY
   Name: string | VARCHAR(30) NOT NULL UNIQUE
+  .m2m: posttag(tagid | postid)
 
 PostTag:
   PostID: int64 | INTEGER NOT NULL

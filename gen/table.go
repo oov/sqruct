@@ -22,6 +22,7 @@ type Table struct {
 	ColumnAfter         []string
 	PrimaryKey          PrimaryKey
 	ForeignKey          []ForeignKey
+	ManyToMany          []*ManyToMany
 }
 
 // PrimarkyKey represents primary key constraint in database table.
@@ -41,6 +42,26 @@ type ForeignKey struct {
 	Mirror bool
 }
 
+func (fk *ForeignKey) Match(cols []*Column) bool {
+loop:
+	for _, c := range cols {
+		for _, fc := range fk.Column {
+			if fc.Self.SQLName() == c.SQLName() {
+				continue loop
+			}
+		}
+		return false // not found in fk.Column
+	}
+	return true
+}
+
+type ManyToMany struct {
+	s        string
+	RelTable *Table
+	MyFK     *ForeignKey
+	OtherFK  *ForeignKey
+}
+
 // ColumnPair represents column pair. it is used in ForeignKey.
 type ColumnPair struct {
 	Self  *Column
@@ -57,6 +78,19 @@ func (t *Table) ColumnByName(s string) *Column {
 	for _, v := range t.Column {
 		if v.SQLName() == s {
 			return v
+		}
+	}
+	return nil
+}
+
+func (t *Table) ForeignKeyByColumns(cols []*Column) *ForeignKey {
+	if t == nil {
+		return nil
+	}
+
+	for i, fk := range t.ForeignKey {
+		if fk.Match(cols) {
+			return &t.ForeignKey[i]
 		}
 	}
 	return nil
