@@ -221,7 +221,6 @@ func splitUnquote(m sqruct.Mode, s string) []string {
 
 // TableByName finds table by name.
 func (sq *Sqruct) TableByName(s string) *Table {
-	s = strings.ToLower(s)
 	for _, v := range sq.Table {
 		if v.SQLName() == s {
 			return v

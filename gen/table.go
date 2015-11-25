@@ -74,7 +74,6 @@ func (t *Table) ColumnByName(s string) *Column {
 		return nil
 	}
 
-	s = strings.ToLower(s)
 	for _, v := range t.Column {
 		if v.SQLName() == s {
 			return v
