@@ -79,7 +79,7 @@ func TestBuildInsert(t *testing.T) {
 
 func BenchmarkBuildInsert(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		buildInsert("hello", []string{"column1", "column2", "column3"}, 2, "DEFAULT", genericPlaceholder{})
+		buildInsert("hello", []string{"column1", "column2", "column3"}, 2, "DEFAULT", &genericPlaceholder{})
 	}
 }
 
