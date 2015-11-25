@@ -207,19 +207,14 @@ func (sq *Sqruct) parseTable(name string, ms yaml.MapSlice) (*Table, error) {
 	return t, nil
 }
 
-func unquote(s string) string {
-	s = strings.TrimSpace(s)
-	if len(s) > 2 && (s[0] == '`' || s[0] == '"' || s[0] == '\'') {
-		// TODO(oov): need some intelligent processing
-		return s[1 : len(s)-1]
-	}
-	return s
+func unquote(m sqruct.Mode, s string) string {
+	return m.Unquote(strings.TrimSpace(s))
 }
 
-func splitUnquote(s string) []string {
+func splitUnquote(m sqruct.Mode, s string) []string {
 	r := strings.Split(s, ",")
 	for i, s := range r {
-		r[i] = unquote(s)
+		r[i] = unquote(m, s)
 	}
 	return r
 }
@@ -257,7 +252,7 @@ func (sq *Sqruct) markPrimaryKeys(t *Table) error {
 			continue
 		}
 		for _, c := range strings.Split(m[1], ",") {
-			c = unquote(c)
+			c = unquote(t.Mode(), c)
 			col := t.ColumnByName(c)
 			if col == nil {
 				return fmt.Errorf(`primary key column %q is not found in table %q`, c, t.SQLName())
@@ -281,7 +276,7 @@ func (sq *Sqruct) markForeignKeys(t *Table) error {
 			continue
 		}
 
-		oTable, oCol := unquote(m[1]), unquote(m[2])
+		oTable, oCol := unquote(t.Mode(), m[1]), unquote(t.Mode(), m[2])
 		err := sq.registerForeignKey(t, oTable, []string{c.SQLName()}, []string{oCol})
 		if err != nil {
 			return err
@@ -295,7 +290,7 @@ func (sq *Sqruct) markForeignKeys(t *Table) error {
 		if len(m) == 0 {
 			continue
 		}
-		cols, oTable, oCols := splitUnquote(m[1]), unquote(m[2]), splitUnquote(m[3])
+		cols, oTable, oCols := splitUnquote(t.Mode(), m[1]), unquote(t.Mode(), m[2]), splitUnquote(t.Mode(), m[3])
 		err := sq.registerForeignKey(t, oTable, cols, oCols)
 		if err != nil {
 			return err
@@ -347,7 +342,7 @@ func (sq *Sqruct) markManyToMany(t *Table) error {
 			return fmt.Errorf("could not parse %q in table %q", m2m.s, t.SQLName())
 		}
 
-		relTable, myCols, oCols := unquote(m[1]), splitUnquote(m[2]), splitUnquote(m[3])
+		relTable, myCols, oCols := unquote(t.Mode(), m[1]), splitUnquote(t.Mode(), m[2]), splitUnquote(t.Mode(), m[3])
 		if m2m.RelTable = sq.TableByName(relTable); m2m.RelTable == nil {
 			return fmt.Errorf("could not find many-to-many relation table %q in table %q", relTable, t.SQLName())
 		}
