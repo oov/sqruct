@@ -18,12 +18,12 @@ type PostTag struct {
 	TagID  int64 `mdl:"fk,notnull"`
 }
 
-func GetPostTag(db sqruct.DB, postid int64, tagid int64) (*PostTag, error) {
+func GetPostTag(db sqruct.DB, postID int64, tagID int64) (*PostTag, error) {
 
 	var t PostTag
 	err := db.QueryRow(
 		"SELECT \"postid\", \"tagid\" FROM \"posttag\" WHERE (\"postid\" = ?)AND(\"tagid\" = ?)",
-		postid, tagid,
+		postID, tagID,
 	).Scan(&t.PostID, &t.TagID)
 	if err != nil {
 		return nil, err

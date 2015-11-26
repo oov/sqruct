@@ -23,12 +23,12 @@ type {{.Name.Go}} struct {
 
 {{$method := print "Get" .Name.Go}}
 {{if .OmitMethod $method}}/*{{end}}
-func {{$method}}(db sqruct.DB{{range $k, $v := .PrimaryKey.Column}}, {{$v.Name.SQL}} {{$v.GoStructFieldType}}{{end}}) (*{{.Name.Go}}, error) {
+func {{$method}}(db sqruct.DB{{range $k, $v := .PrimaryKey.Column}}, {{$v.Name.GoLower}} {{$v.GoStructFieldType}}{{end}}) (*{{.Name.Go}}, error) {
 	{{$ph := .Mode.Placeholder}}
 	var t {{.Name.Go}}
   err := db.QueryRow(
 		"SELECT {{range $k, $v := .Column}}{{if $k}}, {{end}}{{$v.Name.SQLForGo}}{{end}} FROM {{.Name.SQLForGo}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.Name.SQLForGo}} = {{$ph.Next}}){{end}}",
-		{{range $k, $v := .PrimaryKey.Column}}{{if $k}}, {{end}}{{$v.Name.SQL}}{{end}},
+		{{range $k, $v := .PrimaryKey.Column}}{{if $k}}, {{end}}{{$v.Name.GoLower}}{{end}},
 	).Scan({{range $k, $v := .Column}}{{if $k}}, {{end}}&t.{{$v.Name.Go}}{{end}})
 	if err != nil {
   	return nil, err

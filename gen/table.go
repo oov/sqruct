@@ -25,6 +25,17 @@ func (n *Name) SQLForGo() string {
 	return s[1 : len(s)-1]
 }
 
+func (n *Name) GoLower() string {
+	buf := []byte(n.Go)
+	for i, c := range buf {
+		if c < 'A' || 'Z' < c {
+			break
+		}
+		buf[i] += 'a' - 'A'
+	}
+	return string(buf)
+}
+
 // Table represents database table.
 type Table struct {
 	parent              *Sqruct
