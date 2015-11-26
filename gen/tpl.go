@@ -1,12 +1,12 @@
 package gen
 
-const createTableTemplate = `CREATE TABLE {{.SQLName}}(
+const createTableTemplate = `CREATE TABLE {{.Name.SQLQuoted}}(
 	{{range $k, $v := .Column}}{{if $k}},
-	{{end}}{{$v.SQLName}} {{$v.SQLColumn}}{{end}}{{range $k, $v := .ColumnAfter}},
+	{{end}}{{$v.Name.SQLQuoted}} {{$v.SQLColumn}}{{end}}{{range $k, $v := .ColumnAfter}},
 	{{$v}}{{end}}
 );`
 
-const dropTableTemplate = `DROP TABLE {{.SQLName}};`
+const dropTableTemplate = `DROP TABLE {{.Name.SQLForGo}};`
 
 const sourceTemplate = `
 
@@ -14,22 +14,22 @@ const sourceTemplate = `
 
 package {{.PackageName}}
 
-// {{.GoName}} represents the following table.
+// {{.Name.Go}} represents the following table.
 {{.MustCreateTableSQL.AddPrefix "// \t"}}
-type {{.GoName}} struct {
-	schema zz{{.GoName}}
-{{range $k, $v := .Column}}  {{$v.GoName}} {{$v.GoStructFieldWithTag}}
+type {{.Name.Go}} struct {
+	schema zz{{.Name.Go}}
+{{range $k, $v := .Column}}  {{$v.Name.Go}} {{$v.GoStructFieldWithTag}}
 {{end}}}
 
-{{$method := print "Get" .GoName}}
+{{$method := print "Get" .Name.Go}}
 {{if .OmitMethod $method}}/*{{end}}
-func {{$method}}(db sqruct.DB{{range $k, $v := .PrimaryKey.Column}}, {{$v.SQLName}} {{$v.GoStructFieldType}}{{end}}) (*{{.GoName}}, error) {
+func {{$method}}(db sqruct.DB{{range $k, $v := .PrimaryKey.Column}}, {{$v.Name.SQL}} {{$v.GoStructFieldType}}{{end}}) (*{{.Name.Go}}, error) {
 	{{$ph := .Mode.Placeholder}}
-	var t {{.GoName}}
+	var t {{.Name.Go}}
   err := db.QueryRow(
-		"SELECT {{range $k, $v := .Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}} FROM {{.SQLName}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = {{$ph.Next}}){{end}}",
-		{{range $k, $v := .PrimaryKey.Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}},
-	).Scan({{range $k, $v := .Column}}{{if $k}}, {{end}}&t.{{$v.GoName}}{{end}})
+		"SELECT {{range $k, $v := .Column}}{{if $k}}, {{end}}{{$v.Name.SQLForGo}}{{end}} FROM {{.Name.SQLForGo}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.Name.SQLForGo}} = {{$ph.Next}}){{end}}",
+		{{range $k, $v := .PrimaryKey.Column}}{{if $k}}, {{end}}{{$v.Name.SQL}}{{end}},
+	).Scan({{range $k, $v := .Column}}{{if $k}}, {{end}}&t.{{$v.Name.Go}}{{end}})
 	if err != nil {
   	return nil, err
   }
@@ -41,15 +41,15 @@ func {{$method}}(db sqruct.DB{{range $k, $v := .PrimaryKey.Column}}, {{$v.SQLNam
 {{$t := .}}
 {{range $_, $fk := .ForeignKey}}
 {{if and (eq (len $fk.Column) 1) (index $fk.Column 0).Other.PrimaryKey}}
-{{$method := print "Get" $fk.Table.GoName}}
+{{$method := print "Get" $fk.Table.Name.Go}}
 {{if $t.OmitMethod $method}}/*{{end}}
-func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) (*{{$fk.Table.GoName}}, error) {
+func (t *{{$t.Name.Go}}) {{$method}}(db sqruct.DB) (*{{$fk.Table.Name.Go}}, error) {
 	{{$ph := $t.Mode.Placeholder}}
-	var ot {{$fk.Table.GoName}}
+	var ot {{$fk.Table.Name.Go}}
   err := db.QueryRow(
-		"SELECT {{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}} FROM {{$fk.Table.SQLName}} WHERE {{range $k, $v := $fk.Column}}{{if $k}}AND{{end}}({{$v.Other.SQLName}} = {{$ph.Next}}){{end}}",
-		{{range $k, $v := $fk.Column}}{{if $k}}, {{end}}t.{{$v.Self.GoName}}{{end}},
-	).Scan({{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}&ot.{{$v.GoName}}{{end}})
+		"SELECT {{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}{{$v.Name.SQLForGo}}{{end}} FROM {{$fk.Table.Name.SQLForGo}} WHERE {{range $k, $v := $fk.Column}}{{if $k}}AND{{end}}({{$v.Other.Name.SQLForGo}} = {{$ph.Next}}){{end}}",
+		{{range $k, $v := $fk.Column}}{{if $k}}, {{end}}t.{{$v.Self.Name.Go}}{{end}},
+	).Scan({{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}&ot.{{$v.Name.Go}}{{end}})
 	if err != nil {
   	return nil, err
   }
@@ -58,23 +58,23 @@ func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) (*{{$fk.Table.GoName}}, error)
 }
 {{if $t.OmitMethod $method}}*/{{end}}
 {{else}}
-{{$method := print "Select" $fk.Table.GoName}}
+{{$method := print "Select" $fk.Table.Name.Go}}
 {{if $t.OmitMethod $method}}/*{{end}}
-func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) ([]{{$fk.Table.GoName}}, error) {
+func (t *{{$t.Name.Go}}) {{$method}}(db sqruct.DB) ([]{{$fk.Table.Name.Go}}, error) {
 	{{$ph := $t.Mode.Placeholder}}
 	r, err := db.Query(
-		"SELECT {{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}{{$v.SQLName}}{{end}} FROM {{$fk.Table.SQLName}} WHERE {{range $k, $v := $fk.Column}}{{if $k}}AND{{end}}({{$v.Other.SQLName}} = {{$ph.Next}}){{end}}",
-		{{range $k, $v := $fk.Column}}{{if $k}}, {{end}}t.{{$v.Self.GoName}}{{end}},
+		"SELECT {{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}{{$v.Name.SQLForGo}}{{end}} FROM {{$fk.Table.Name.SQLForGo}} WHERE {{range $k, $v := $fk.Column}}{{if $k}}AND{{end}}({{$v.Other.Name.SQLForGo}} = {{$ph.Next}}){{end}}",
+		{{range $k, $v := $fk.Column}}{{if $k}}, {{end}}t.{{$v.Self.Name.Go}}{{end}},
 	)
   if err != nil {
   	return nil, err
   }
 	defer r.Close()
 
-	ot := []{{$fk.Table.GoName}}{}
+	ot := []{{$fk.Table.Name.Go}}{}
 	for r.Next() {
-		var e {{$fk.Table.GoName}}
-		if err = r.Scan({{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}&e.{{$v.GoName}}{{end}}); err != nil {
+		var e {{$fk.Table.Name.Go}}
+		if err = r.Scan({{range $k, $v := $fk.Table.Column}}{{if $k}}, {{end}}&e.{{$v.Name.Go}}{{end}}); err != nil {
   		return nil, err
   	}
 		ot = append(ot, e)
@@ -93,24 +93,24 @@ func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) ([]{{$fk.Table.GoName}}, error
 {{range $_, $m2m := .ManyToMany}}
 {{$relTable := $m2m.RelTable}}
 {{$oTable := $m2m.OtherFK.Table}}
-{{$method := print "Select" $oTable.GoName}}
+{{$method := print "Select" $oTable.Name.Go}}
 {{if $t.OmitMethod $method}}/*{{end}}
-func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) ([]{{$oTable.GoName}}, []{{$relTable.GoName}}, error) {
+func (t *{{$t.Name.Go}}) {{$method}}(db sqruct.DB) ([]{{$oTable.Name.Go}}, []{{$relTable.Name.Go}}, error) {
 	{{$ph := $t.Mode.Placeholder}}
 	r, err := db.Query(
-		"SELECT {{range $k, $v := $oTable.Column}}{{if $k}}, {{end}}{{$oTable.SQLName}}.{{$v.SQLName}}{{end}}{{range $k, $v := $relTable.Column}}, {{$relTable.SQLName}}.{{$v.SQLName}}{{end}} FROM {{$relTable.SQLName}}, {{$oTable.SQLName}} WHERE {{range $k, $v := $m2m.MyFK.Column}}{{if $k}}AND{{end}}({{$relTable.SQLName}}.{{$v.Self.SQLName}} = {{$ph.Next}}){{end}}{{range $k, $v := $m2m.OtherFK.Column}}AND({{$relTable.SQLName}}.{{$v.Self.SQLName}} = {{$oTable.SQLName}}.{{$v.Other.SQLName}}){{end}}",
-		{{range $k, $v := $m2m.MyFK.Column}}{{if $k}}, {{end}}t.{{$v.Other.GoName}}{{end}},
+		"SELECT {{range $k, $v := $oTable.Column}}{{if $k}}, {{end}}{{$oTable.Name.SQLForGo}}.{{$v.Name.SQLForGo}}{{end}}{{range $k, $v := $relTable.Column}}, {{$relTable.Name.SQLForGo}}.{{$v.Name.SQLForGo}}{{end}} FROM {{$relTable.Name.SQLForGo}}, {{$oTable.Name.SQLForGo}} WHERE {{range $k, $v := $m2m.MyFK.Column}}{{if $k}}AND{{end}}({{$relTable.Name.SQLForGo}}.{{$v.Self.Name.SQLForGo}} = {{$ph.Next}}){{end}}{{range $k, $v := $m2m.OtherFK.Column}}AND({{$relTable.Name.SQLForGo}}.{{$v.Self.Name.SQLForGo}} = {{$oTable.Name.SQLForGo}}.{{$v.Other.Name.SQLForGo}}){{end}}",
+		{{range $k, $v := $m2m.MyFK.Column}}{{if $k}}, {{end}}t.{{$v.Other.Name.Go}}{{end}},
 	)
   if err != nil {
   	return nil, nil, err
   }
 	defer r.Close()
 
-	ot, rt := []{{$oTable.GoName}}{}, []{{$relTable.GoName}}{}
+	ot, rt := []{{$oTable.Name.Go}}{}, []{{$relTable.Name.Go}}{}
 	for r.Next() {
-		var oe {{$oTable.GoName}}
-		var re {{$relTable.GoName}}
-		if err = r.Scan({{range $k, $v := $oTable.Column}}{{if $k}}, {{end}}&oe.{{$v.GoName}}{{end}}{{range $k, $v := $relTable.Column}}, &re.{{$v.GoName}}{{end}}); err != nil {
+		var oe {{$oTable.Name.Go}}
+		var re {{$relTable.Name.Go}}
+		if err = r.Scan({{range $k, $v := $oTable.Column}}{{if $k}}, {{end}}&oe.{{$v.Name.Go}}{{end}}{{range $k, $v := $relTable.Column}}, &re.{{$v.Name.Go}}{{end}}); err != nil {
   		return nil, nil, err
   	}
 		ot, rt = append(ot, oe), append(rt, re)
@@ -125,7 +125,7 @@ func (t *{{$t.GoName}}) {{$method}}(db sqruct.DB) ([]{{$oTable.GoName}}, []{{$re
 
 {{$method := "Insert"}}
 {{if .OmitMethod $method}}/*{{end}}
-func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
+func (t *{{.Name.Go}}) {{$method}}(db sqruct.DB) error {
 	{{$aicol := .AutoIncrementColumn}}
 	{{if $aicol}}
 		i, err := t.schema.Mode().Insert(db, t.schema.TableName(), t.schema.Columns(), t.schema.Values(t), t.schema.AutoIncrementColumnIndex())
@@ -133,7 +133,7 @@ func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
 			return err
 		}
 		if i != 0 {
-			t.{{$aicol.GoName}} = {{if eq $aicol.GoStructFieldType "int64"}}i{{else}}{{$aicol.GoStructFieldType}}(i){{end}}
+			t.{{$aicol.Name.Go}} = {{if eq $aicol.GoStructFieldType "int64"}}i{{else}}{{$aicol.GoStructFieldType}}(i){{end}}
 		}
 		return nil
 	{{else}}
@@ -146,19 +146,19 @@ func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
 {{$method := "Update"}}
 {{if .OmitMethod $method}}/*{{end}}
 {{if .NonPrimaryKeys}}
-func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
+func (t *{{.Name.Go}}) {{$method}}(db sqruct.DB) error {
 	{{$ph := .Mode.Placeholder}}
 	_, err := db.Exec(
-		"UPDATE {{.SQLName}} SET {{range $k, $v := .NonPrimaryKeys}}{{if $k}}, {{end}}{{$v.SQLName}} = {{$ph.Next}}{{end}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = {{$ph.Next}}){{end}}",
-		{{range $k, $v := .NonPrimaryKeys}}{{if $k}}, {{end}}t.{{$v.GoName}}{{end}},
-		{{range $k, $v := .PrimaryKey.Column}}{{if $k}}, {{end}}t.{{$v.GoName}}{{end}},
+		"UPDATE {{.Name.SQLForGo}} SET {{range $k, $v := .NonPrimaryKeys}}{{if $k}}, {{end}}{{$v.Name.SQLForGo}} = {{$ph.Next}}{{end}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.Name.SQLForGo}} = {{$ph.Next}}){{end}}",
+		{{range $k, $v := .NonPrimaryKeys}}{{if $k}}, {{end}}t.{{$v.Name.Go}}{{end}},
+		{{range $k, $v := .PrimaryKey.Column}}{{if $k}}, {{end}}t.{{$v.Name.Go}}{{end}},
 	)
 	return err
 
 }
 {{else}}
-func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
-	// {{.GoName}} has primary key only
+func (t *{{.Name.Go}}) {{$method}}(db sqruct.DB) error {
+	// {{.Name.Go}} has primary key only
 	return nil
 }
 {{end}}
@@ -166,58 +166,58 @@ func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
 
 {{$method := "Delete"}}
 {{if .OmitMethod $method}}/*{{end}}
-func (t *{{.GoName}}) {{$method}}(db sqruct.DB) error {
+func (t *{{.Name.Go}}) {{$method}}(db sqruct.DB) error {
 	{{$ph := .Mode.Placeholder}}
 	_, err := db.Exec(
-		"DELETE FROM {{.SQLName}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.SQLName}} = {{$ph.Next}}){{end}}",
-		{{range $k, $v := .PrimaryKey.Column}}{{if $k}}, {{end}}t.{{$v.GoName}}{{end}},
+		"DELETE FROM {{.Name.SQLForGo}} WHERE {{range $k, $v := .PrimaryKey.Column}}{{if $k}}AND{{end}}({{$v.Name.SQLForGo}} = {{$ph.Next}}){{end}}",
+		{{range $k, $v := .PrimaryKey.Column}}{{if $k}}, {{end}}t.{{$v.Name.Go}}{{end}},
 	)
 	return err
 
 }
 {{if .OmitMethod $method}}*/{{end}}
 
-// zz{{.GoName}} represents {{.GoName}} table schema.
-type zz{{.GoName}} struct {}
+// zz{{.Name.Go}} represents {{.Name.Go}} table schema.
+type zz{{.Name.Go}} struct {}
 
 {{$method := "TableName"}}
 {{if .OmitMethod $method}}/*{{end}}
-func (zz{{.GoName}}) {{$method}}() string {
-	return {{printf "%q" .SQLName}}
+func (zz{{.Name.Go}}) {{$method}}() string {
+	return {{printf "%q" .Name.SQL}}
 }
 {{if .OmitMethod $method}}*/{{end}}
 
 {{$method := "Columns"}}
 {{if .OmitMethod $method}}/*{{end}}
-func (zz{{.GoName}}) {{$method}}() []string {
-	return []string{ {{range $k, $v := .Column}}{{if $k}},{{end}}{{printf "%q" $v.SQLName}}{{end}} }
+func (zz{{.Name.Go}}) {{$method}}() []string {
+	return []string{ {{range $k, $v := .Column}}{{if $k}},{{end}}{{printf "%q" $v.Name.SQL}}{{end}} }
 }
 {{if .OmitMethod $method}}*/{{end}}
 
 {{$method := "AutoIncrementColumnIndex"}}
 {{if .OmitMethod $method}}/*{{end}}
-func (zz{{.GoName}}) {{$method}}() int {
+func (zz{{.Name.Go}}) {{$method}}() int {
 	return {{if .AutoIncrementColumn}}{{range $k, $v := .Column}}{{if $v.AutoIncrement}}{{$k}}{{end}}{{end}}{{else}}-1{{end}}
 }
 {{if .OmitMethod $method}}*/{{end}}
 
 {{$method := "Values"}}
 {{if .OmitMethod $method}}/*{{end}}
-func (zz{{.GoName}}) {{$method}}(t *{{.GoName}}) []interface{} {
-	return []interface{}{ {{range $k, $v := .Column}}{{if $k}},{{end}}t.{{$v.GoName}}{{end}} }
+func (zz{{.Name.Go}}) {{$method}}(t *{{.Name.Go}}) []interface{} {
+	return []interface{}{ {{range $k, $v := .Column}}{{if $k}},{{end}}t.{{$v.Name.Go}}{{end}} }
 }
 {{if .OmitMethod $method}}*/{{end}}
 
 {{$method := "Pointers"}}
 {{if .OmitMethod $method}}/*{{end}}
-func (zz{{.GoName}}) {{$method}}(t *{{.GoName}}) []interface{} {
-	return []interface{}{ {{range $k, $v := .Column}}{{if $k}},{{end}}&t.{{$v.GoName}}{{end}} }
+func (zz{{.Name.Go}}) {{$method}}(t *{{.Name.Go}}) []interface{} {
+	return []interface{}{ {{range $k, $v := .Column}}{{if $k}},{{end}}&t.{{$v.Name.Go}}{{end}} }
 }
 {{if .OmitMethod $method}}*/{{end}}
 
 {{$method := "Mode"}}
 {{if .OmitMethod $method}}/*{{end}}
-func (zz{{.GoName}}) {{$method}}() sqruct.Mode {
+func (zz{{.Name.Go}}) {{$method}}() sqruct.Mode {
 	return sqruct.{{.Mode}}
 }
 {{if .OmitMethod $method}}*/{{end}}

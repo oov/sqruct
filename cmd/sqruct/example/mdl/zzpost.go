@@ -9,11 +9,11 @@ import (
 )
 
 // Post represents the following table.
-// 	CREATE TABLE post(
-// 		id INTEGER PRIMARY KEY,
-// 		accountid INTEGER NOT NULL,
-// 		at DATETIME NOT NULL,
-// 		message VARCHAR(8125) NOT NULL,
+// 	CREATE TABLE "post"(
+// 		"id" INTEGER PRIMARY KEY,
+// 		"accountid" INTEGER NOT NULL,
+// 		"at" DATETIME NOT NULL,
+// 		"message" VARCHAR(8125) NOT NULL,
 // 		FOREIGN KEY (accountid) REFERENCES account(id) ON DELETE CASCADE
 // 	);
 type Post struct {
@@ -28,7 +28,7 @@ func GetPost(db sqruct.DB, id int64) (*Post, error) {
 
 	var t Post
 	err := db.QueryRow(
-		"SELECT id, accountid, at, message FROM post WHERE (id = ?)",
+		"SELECT \"id\", \"accountid\", \"at\", \"message\" FROM \"post\" WHERE (\"id\" = ?)",
 		id,
 	).Scan(&t.ID, &t.AccountID, &t.At, &t.Message)
 	if err != nil {
@@ -42,7 +42,7 @@ func (t *Post) GetAccount(db sqruct.DB) (*Account, error) {
 
 	var ot Account
 	err := db.QueryRow(
-		"SELECT id, name FROM account WHERE (id = ?)",
+		"SELECT \"id\", \"name\" FROM \"account\" WHERE (\"id\" = ?)",
 		t.AccountID,
 	).Scan(&ot.ID, &ot.Name)
 	if err != nil {
@@ -55,7 +55,7 @@ func (t *Post) GetAccount(db sqruct.DB) (*Account, error) {
 func (t *Post) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 
 	r, err := db.Query(
-		"SELECT postid, tagid FROM posttag WHERE (postid = ?)",
+		"SELECT \"postid\", \"tagid\" FROM \"posttag\" WHERE (\"postid\" = ?)",
 		t.ID,
 	)
 	if err != nil {
@@ -81,7 +81,7 @@ func (t *Post) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 func (t *Post) SelectTag(db sqruct.DB) ([]Tag, []PostTag, error) {
 
 	r, err := db.Query(
-		"SELECT tag.id, tag.name, posttag.postid, posttag.tagid FROM posttag, tag WHERE (posttag.postid = ?)AND(posttag.tagid = tag.id)",
+		"SELECT \"tag\".\"id\", \"tag\".\"name\", \"posttag\".\"postid\", \"posttag\".\"tagid\" FROM \"posttag\", \"tag\" WHERE (\"posttag\".\"postid\" = ?)AND(\"posttag\".\"tagid\" = \"tag\".\"id\")",
 		t.ID,
 	)
 	if err != nil {
@@ -120,7 +120,7 @@ func (t *Post) Insert(db sqruct.DB) error {
 func (t *Post) Update(db sqruct.DB) error {
 
 	_, err := db.Exec(
-		"UPDATE post SET accountid = ?, at = ?, message = ? WHERE (id = ?)",
+		"UPDATE \"post\" SET \"accountid\" = ?, \"at\" = ?, \"message\" = ? WHERE (\"id\" = ?)",
 		t.AccountID, t.At, t.Message,
 		t.ID,
 	)
@@ -131,7 +131,7 @@ func (t *Post) Update(db sqruct.DB) error {
 func (t *Post) Delete(db sqruct.DB) error {
 
 	_, err := db.Exec(
-		"DELETE FROM post WHERE (id = ?)",
+		"DELETE FROM \"post\" WHERE (\"id\" = ?)",
 		t.ID,
 	)
 	return err

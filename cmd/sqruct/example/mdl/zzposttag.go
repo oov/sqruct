@@ -5,9 +5,9 @@ package mdl
 import "github.com/oov/sqruct"
 
 // PostTag represents the following table.
-// 	CREATE TABLE posttag(
-// 		postid INTEGER NOT NULL,
-// 		tagid INTEGER NOT NULL,
+// 	CREATE TABLE "posttag"(
+// 		"postid" INTEGER NOT NULL,
+// 		"tagid" INTEGER NOT NULL,
 // 		FOREIGN KEY (postid) REFERENCES post(id) ON DELETE CASCADE,
 // 		FOREIGN KEY (tagid) REFERENCES tag(id) ON DELETE CASCADE,
 // 		PRIMARY KEY (postid, tagid)
@@ -22,7 +22,7 @@ func GetPostTag(db sqruct.DB, postid int64, tagid int64) (*PostTag, error) {
 
 	var t PostTag
 	err := db.QueryRow(
-		"SELECT postid, tagid FROM posttag WHERE (postid = ?)AND(tagid = ?)",
+		"SELECT \"postid\", \"tagid\" FROM \"posttag\" WHERE (\"postid\" = ?)AND(\"tagid\" = ?)",
 		postid, tagid,
 	).Scan(&t.PostID, &t.TagID)
 	if err != nil {
@@ -36,7 +36,7 @@ func (t *PostTag) GetPost(db sqruct.DB) (*Post, error) {
 
 	var ot Post
 	err := db.QueryRow(
-		"SELECT id, accountid, at, message FROM post WHERE (id = ?)",
+		"SELECT \"id\", \"accountid\", \"at\", \"message\" FROM \"post\" WHERE (\"id\" = ?)",
 		t.PostID,
 	).Scan(&ot.ID, &ot.AccountID, &ot.At, &ot.Message)
 	if err != nil {
@@ -50,7 +50,7 @@ func (t *PostTag) GetTag(db sqruct.DB) (*Tag, error) {
 
 	var ot Tag
 	err := db.QueryRow(
-		"SELECT id, name FROM tag WHERE (id = ?)",
+		"SELECT \"id\", \"name\" FROM \"tag\" WHERE (\"id\" = ?)",
 		t.TagID,
 	).Scan(&ot.ID, &ot.Name)
 	if err != nil {
@@ -75,7 +75,7 @@ func (t *PostTag) Update(db sqruct.DB) error {
 func (t *PostTag) Delete(db sqruct.DB) error {
 
 	_, err := db.Exec(
-		"DELETE FROM posttag WHERE (postid = ?)AND(tagid = ?)",
+		"DELETE FROM \"posttag\" WHERE (\"postid\" = ?)AND(\"tagid\" = ?)",
 		t.PostID, t.TagID,
 	)
 	return err

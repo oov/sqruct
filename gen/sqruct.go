@@ -37,7 +37,7 @@ func (sq *Sqruct) Export(baseDir string) error {
 		if err != nil {
 			return err
 		}
-		f, err := os.Create(path.Join(d, "zz"+strings.ToLower(t.GoName)+".go"))
+		f, err := os.Create(path.Join(d, "zz"+strings.ToLower(t.Name.Go)+".go"))
 		if err != nil {
 			return err
 		}
@@ -145,7 +145,7 @@ func (sq *Sqruct) parseTable(name string, ms yaml.MapSlice) (*Table, error) {
 	t := &Table{
 		parent:      sq,
 		omitMethod:  map[string]struct{}{},
-		GoName:      name,
+		Name:        Name{Go: name, SQL: strings.ToLower(name), m: sq.Config.Mode},
 		ColumnAfter: []string{},
 		ManyToMany:  []*ManyToMany{},
 	}
@@ -198,7 +198,7 @@ func (sq *Sqruct) parseTable(name string, ms yaml.MapSlice) (*Table, error) {
 			idx := strings.Index(s, "|")
 			t.Column = append(t.Column, &Column{
 				parent:        t,
-				GoName:        key,
+				Name:          Name{Go: key, SQL: strings.ToLower(key), m: sq.Config.Mode},
 				GoStructField: strings.TrimSpace(s[:idx]),
 				SQLColumn:     strings.TrimSpace(s[idx+1:]),
 			})
@@ -219,10 +219,10 @@ func splitUnquote(m sqruct.Mode, s string) []string {
 	return r
 }
 
-// TableByName finds table by name.
+// TableByName finds table by name in SQL.
 func (sq *Sqruct) TableByName(s string) *Table {
 	for _, v := range sq.Table {
-		if v.SQLName() == s {
+		if v.Name.SQL == s {
 			return v
 		}
 	}
@@ -254,7 +254,7 @@ func (sq *Sqruct) markPrimaryKeys(t *Table) error {
 			c = unquote(t.Mode(), c)
 			col := t.ColumnByName(c)
 			if col == nil {
-				return fmt.Errorf(`primary key column %q is not found in table %q`, c, t.SQLName())
+				return fmt.Errorf(`primary key column %q is not found in table %q`, c, t.Name.SQL)
 			}
 			t.PrimaryKey.Column = append(t.PrimaryKey.Column, col)
 		}
@@ -276,7 +276,7 @@ func (sq *Sqruct) markForeignKeys(t *Table) error {
 		}
 
 		oTable, oCol := unquote(t.Mode(), m[1]), unquote(t.Mode(), m[2])
-		err := sq.registerForeignKey(t, oTable, []string{c.SQLName()}, []string{oCol})
+		err := sq.registerForeignKey(t, oTable, []string{c.Name.SQL}, []string{oCol})
 		if err != nil {
 			return err
 		}
@@ -315,10 +315,10 @@ func (sq *Sqruct) registerForeignKey(t *Table, otherTable string, cols []string,
 			Other: fk.Table.ColumnByName(otherCols[i]),
 		}
 		if p.Self == nil {
-			return fmt.Errorf(`column %q is not found in table %q`, cols[i], t.SQLName())
+			return fmt.Errorf(`column %q is not found in table %q`, cols[i], t.Name.SQL)
 		}
 		if p.Other == nil {
-			return fmt.Errorf(`column %q is not found in table %q`, otherCols[i], fk.Table.SQLName())
+			return fmt.Errorf(`column %q is not found in table %q`, otherCols[i], fk.Table.Name.SQL)
 		}
 		fk.Column = append(fk.Column, p)
 	}
@@ -338,38 +338,38 @@ func (sq *Sqruct) markManyToMany(t *Table) error {
 	for _, m2m := range t.ManyToMany {
 		m := parserRE.FindStringSubmatch(m2m.s)
 		if len(m) == 0 {
-			return fmt.Errorf("could not parse %q in table %q", m2m.s, t.SQLName())
+			return fmt.Errorf("could not parse %q in table %q", m2m.s, t.Name.SQL)
 		}
 
 		relTable, myCols, oCols := unquote(t.Mode(), m[1]), splitUnquote(t.Mode(), m[2]), splitUnquote(t.Mode(), m[3])
 		if m2m.RelTable = sq.TableByName(relTable); m2m.RelTable == nil {
-			return fmt.Errorf("could not find many-to-many relation table %q in table %q", relTable, t.SQLName())
+			return fmt.Errorf("could not find many-to-many relation table %q in table %q", relTable, t.Name.SQL)
 		}
 
 		cols := []*Column{}
 		for _, s := range myCols {
 			c := m2m.RelTable.ColumnByName(s)
 			if c == nil {
-				return fmt.Errorf("could not find column %q in relation table %q in table %q", s, m2m.RelTable.SQLName(), t.SQLName())
+				return fmt.Errorf("could not find column %q in relation table %q in table %q", s, m2m.RelTable.Name.SQL, t.Name.SQL)
 			}
 			cols = append(cols, c)
 		}
 		m2m.MyFK = m2m.RelTable.ForeignKeyByColumns(cols)
 		if m2m.MyFK == nil {
-			return fmt.Errorf("foreign key (%s) not found in relation table %q in table %q", strings.Join(myCols, ", "), m2m.RelTable.SQLName(), t.SQLName())
+			return fmt.Errorf("foreign key (%s) not found in relation table %q in table %q", strings.Join(myCols, ", "), m2m.RelTable.Name.SQL, t.Name.SQL)
 		}
 
 		cols = []*Column{}
 		for _, s := range oCols {
 			c := m2m.RelTable.ColumnByName(s)
 			if c == nil {
-				return fmt.Errorf("could not find column %q in relation table %q in table %q", s, m2m.RelTable.SQLName(), t.SQLName())
+				return fmt.Errorf("could not find column %q in relation table %q in table %q", s, m2m.RelTable.Name.SQL, t.Name.SQL)
 			}
 			cols = append(cols, c)
 		}
 		m2m.OtherFK = m2m.RelTable.ForeignKeyByColumns(cols)
 		if m2m.OtherFK == nil {
-			return fmt.Errorf("foreign key (%s) not found in relation table %q in table %q", strings.Join(oCols, ", "), m2m.RelTable.SQLName(), t.SQLName())
+			return fmt.Errorf("foreign key (%s) not found in relation table %q in table %q", strings.Join(oCols, ", "), m2m.RelTable.Name.SQL, t.Name.SQL)
 		}
 	}
 	return nil

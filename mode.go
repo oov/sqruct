@@ -38,7 +38,7 @@ func (mySQL) IsAutoIncrement(col string) bool {
 }
 
 func (m mySQL) Insert(db DB, table string, columns []string, values []interface{}, autoIncrColumn int) (int64, error) {
-	return genericInsert(db, table, columns, values, autoIncrColumn, m.DefaultValueKeyword(), m.Placeholder())
+	return genericInsert(db, table, columns, values, autoIncrColumn, m)
 }
 
 func (mySQL) Placeholder() Placeholder {
@@ -67,7 +67,7 @@ func (postgreSQL) IsAutoIncrement(col string) bool {
 }
 
 func (m postgreSQL) Insert(db DB, table string, columns []string, values []interface{}, autoIncrColumn int) (int64, error) {
-	return postgresInsert(db, table, columns, values, autoIncrColumn, m.DefaultValueKeyword(), m.Placeholder())
+	return postgresInsert(db, table, columns, values, autoIncrColumn, m)
 }
 
 func (postgreSQL) Placeholder() Placeholder {
@@ -96,7 +96,7 @@ func (sqlite) IsAutoIncrement(col string) bool {
 }
 
 func (m sqlite) Insert(db DB, table string, columns []string, values []interface{}, autoIncrColumn int) (int64, error) {
-	return genericInsert(db, table, columns, values, autoIncrColumn, m.DefaultValueKeyword(), m.Placeholder())
+	return genericInsert(db, table, columns, values, autoIncrColumn, m)
 }
 
 func (sqlite) Placeholder() Placeholder {

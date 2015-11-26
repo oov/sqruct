@@ -5,9 +5,9 @@ package mdl
 import "github.com/oov/sqruct"
 
 // Account represents the following table.
-// 	CREATE TABLE account(
-// 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-// 		name VARCHAR(30) NOT NULL UNIQUE
+// 	CREATE TABLE "account"(
+// 		"id" INTEGER PRIMARY KEY AUTOINCREMENT,
+// 		"name" VARCHAR(30) NOT NULL UNIQUE
 // 	);
 type Account struct {
 	schema zzAccount
@@ -19,7 +19,7 @@ func GetAccount(db sqruct.DB, id int64) (*Account, error) {
 
 	var t Account
 	err := db.QueryRow(
-		"SELECT id, name FROM account WHERE (id = ?)",
+		"SELECT \"id\", \"name\" FROM \"account\" WHERE (\"id\" = ?)",
 		id,
 	).Scan(&t.ID, &t.Name)
 	if err != nil {
@@ -32,7 +32,7 @@ func GetAccount(db sqruct.DB, id int64) (*Account, error) {
 func (t *Account) SelectPost(db sqruct.DB) ([]Post, error) {
 
 	r, err := db.Query(
-		"SELECT id, accountid, at, message FROM post WHERE (accountid = ?)",
+		"SELECT \"id\", \"accountid\", \"at\", \"message\" FROM \"post\" WHERE (\"accountid\" = ?)",
 		t.ID,
 	)
 	if err != nil {
@@ -71,7 +71,7 @@ func (t *Account) Insert(db sqruct.DB) error {
 func (t *Account) Update(db sqruct.DB) error {
 
 	_, err := db.Exec(
-		"UPDATE account SET name = ? WHERE (id = ?)",
+		"UPDATE \"account\" SET \"name\" = ? WHERE (\"id\" = ?)",
 		t.Name,
 		t.ID,
 	)
@@ -82,7 +82,7 @@ func (t *Account) Update(db sqruct.DB) error {
 func (t *Account) Delete(db sqruct.DB) error {
 
 	_, err := db.Exec(
-		"DELETE FROM account WHERE (id = ?)",
+		"DELETE FROM \"account\" WHERE (\"id\" = ?)",
 		t.ID,
 	)
 	return err

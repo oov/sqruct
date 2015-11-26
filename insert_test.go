@@ -8,7 +8,6 @@ import (
 func TestBuildInsert(t *testing.T) {
 	datas := []struct {
 		Output      string
-		Cap         int
 		Table       string
 		Columns     []string
 		AutoIncrCol int
@@ -16,16 +15,14 @@ func TestBuildInsert(t *testing.T) {
 	}{
 		// MySQL like
 		{
-			Output:      "INSERT INTO h (c1, c2, c3) VALUES (?, ?, ?)",
-			Cap:         len("INSERT INTO h (c1, c2, c3) VALUES (?, ?, ?) RETURNING "),
+			Output:      "INSERT INTO `h` (`c1`, `c2`, `c3`) VALUES (?, ?, ?)",
 			Table:       "h",
 			Columns:     []string{"c1", "c2", "c3"},
 			AutoIncrCol: -1,
 			Mode:        MySQL,
 		},
 		{
-			Output:      "INSERT INTO h (c1, c2, c3) VALUES (?, ?, DEFAULT)",
-			Cap:         len("INSERT INTO h (c1, c2, c3) VALUES (?, ?, DEFAULT) RETURNING c3"),
+			Output:      "INSERT INTO `h` (`c1`, `c2`, `c3`) VALUES (?, ?, DEFAULT)",
 			Table:       "h",
 			Columns:     []string{"c1", "c2", "c3"},
 			AutoIncrCol: 2,
@@ -33,16 +30,14 @@ func TestBuildInsert(t *testing.T) {
 		},
 		// PostgreSQL like
 		{
-			Output:      "INSERT INTO h (c1, c2, c3) VALUES ($1, $2, $3)",
-			Cap:         len("INSERT INTO h (c1, c2, c3) VALUES ($1, $2, $3) RETURNING "),
+			Output:      `INSERT INTO "h" ("c1", "c2", "c3") VALUES ($1, $2, $3)`,
 			Table:       "h",
 			Columns:     []string{"c1", "c2", "c3"},
 			AutoIncrCol: -1,
 			Mode:        PostgreSQL,
 		},
 		{
-			Output:      "INSERT INTO h (c1, c2, c3) VALUES (DEFAULT, $1, $2)",
-			Cap:         len("INSERT INTO h (c1, c2, c3) VALUES (DEFAULT, $1, $2) RETURNING c1"),
+			Output:      `INSERT INTO "h" ("c1", "c2", "c3") VALUES (DEFAULT, $1, $2)`,
 			Table:       "h",
 			Columns:     []string{"c1", "c2", "c3"},
 			AutoIncrCol: 0,
@@ -50,16 +45,14 @@ func TestBuildInsert(t *testing.T) {
 		},
 		// SQLite like
 		{
-			Output:      "INSERT INTO h (c1, c2, c3) VALUES (?, ?, ?)",
-			Cap:         len("INSERT INTO h (c1, c2, c3) VALUES (?, ?, ?) RETURNING "),
+			Output:      `INSERT INTO "h" ("c1", "c2", "c3") VALUES (?, ?, ?)`,
 			Table:       "h",
 			Columns:     []string{"c1", "c2", "c3"},
 			AutoIncrCol: -1,
 			Mode:        SQLite,
 		},
 		{
-			Output:      "INSERT INTO h (c1, c2, c3) VALUES (NULL, ?, ?)",
-			Cap:         len("INSERT INTO h (c1, c2, c3) VALUES (NULL, ?, ?) RETURNING c1"),
+			Output:      `INSERT INTO "h" ("c1", "c2", "c3") VALUES (NULL, ?, ?)`,
 			Table:       "h",
 			Columns:     []string{"c1", "c2", "c3"},
 			AutoIncrCol: 0,
@@ -67,19 +60,16 @@ func TestBuildInsert(t *testing.T) {
 		},
 	}
 	for i, v := range datas {
-		q := buildInsert(v.Table, v.Columns, v.AutoIncrCol, v.Mode.DefaultValueKeyword(), v.Mode.Placeholder())
+		q := buildInsert(v.Table, v.Columns, v.AutoIncrCol, v.Mode)
 		if string(q) != v.Output {
 			t.Errorf("buildInsertQueryData[%d] want %q got %q", i, v.Output, string(q))
-		}
-		if cap(q) != v.Cap {
-			t.Errorf("buildInsertQueryData[%d] cap want %d got %d", i, v.Cap, cap(q))
 		}
 	}
 }
 
 func BenchmarkBuildInsert(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		buildInsert("hello", []string{"column1", "column2", "column3"}, 2, "DEFAULT", &genericPlaceholder{})
+		buildInsert("hello", []string{"column1", "column2", "column3"}, 2, MySQL)
 	}
 }
 
@@ -98,14 +88,14 @@ func TestAutoIncrementOnInsert(t *testing.T) {
 		{
 			AutoIncrementColumnIndex: 0,
 			Create: map[string]string{
-				"MySQL":      `CREATE TABLE tbl(a INTEGER AUTO_INCREMENT PRIMARY KEY, b INT, c INT)`,
-				"PostgreSQL": `CREATE TABLE tbl(a SERIAL PRIMARY KEY, b INT, c INT)`,
-				"SQLite":     `CREATE TABLE tbl(a INTEGER PRIMARY KEY, b INT, c INT)`,
+				"MySQL":      "CREATE TABLE `tbl`(`a` INTEGER AUTO_INCREMENT PRIMARY KEY, `b` INT, `c` INT)",
+				"PostgreSQL": `CREATE TABLE "tbl"("a" SERIAL PRIMARY KEY, "b" INT, "c" INT)`,
+				"SQLite":     `CREATE TABLE "tbl"("a" INTEGER PRIMARY KEY, "b" INT, "c" INT)`,
 			},
 			Drop: map[string]string{
-				"MySQL":      `DROP TABLE tbl`,
-				"PostgreSQL": `DROP TABLE tbl`,
-				"SQLite":     `DROP TABLE tbl`,
+				"MySQL":      "DROP TABLE `tbl`",
+				"PostgreSQL": `DROP TABLE "tbl"`,
+				"SQLite":     `DROP TABLE "tbl"`,
 			},
 			Datas: []Data{
 				{
@@ -128,14 +118,14 @@ func TestAutoIncrementOnInsert(t *testing.T) {
 		{
 			AutoIncrementColumnIndex: 1,
 			Create: map[string]string{
-				"MySQL":      `CREATE TABLE tbl(a INT, b INTEGER AUTO_INCREMENT PRIMARY KEY, c INT)`,
-				"PostgreSQL": `CREATE TABLE tbl(a INT, b SERIAL PRIMARY KEY, c INT)`,
-				"SQLite":     `CREATE TABLE tbl(a INT, b INTEGER PRIMARY KEY, c INT)`,
+				"MySQL":      "CREATE TABLE `tbl`(`a` INT, `b` INTEGER AUTO_INCREMENT PRIMARY KEY, `c` INT)",
+				"PostgreSQL": `CREATE TABLE "tbl"("a" INT, "b" SERIAL PRIMARY KEY, "c" INT)`,
+				"SQLite":     `CREATE TABLE "tbl"("a" INT, "b" INTEGER PRIMARY KEY, "c" INT)`,
 			},
 			Drop: map[string]string{
-				"MySQL":      `DROP TABLE tbl`,
-				"PostgreSQL": `DROP TABLE tbl`,
-				"SQLite":     `DROP TABLE tbl`,
+				"MySQL":      "DROP TABLE `tbl`",
+				"PostgreSQL": `DROP TABLE "tbl"`,
+				"SQLite":     `DROP TABLE "tbl"`,
 			},
 			Datas: []Data{
 				{
@@ -158,14 +148,14 @@ func TestAutoIncrementOnInsert(t *testing.T) {
 		{
 			AutoIncrementColumnIndex: 2,
 			Create: map[string]string{
-				"MySQL":      `CREATE TABLE tbl(a INT, b INT, c INTEGER AUTO_INCREMENT PRIMARY KEY)`,
-				"PostgreSQL": `CREATE TABLE tbl(a INT, b INT, c SERIAL PRIMARY KEY)`,
-				"SQLite":     `CREATE TABLE tbl(a INT, b INT, c INTEGER PRIMARY KEY)`,
+				"MySQL":      "CREATE TABLE `tbl`(`a` INT, `b` INT, `c` INTEGER AUTO_INCREMENT PRIMARY KEY)",
+				"PostgreSQL": `CREATE TABLE "tbl"("a" INT, "b" INT, "c" SERIAL PRIMARY KEY)`,
+				"SQLite":     `CREATE TABLE "tbl"("a" INT, "b" INT, "c" INTEGER PRIMARY KEY)`,
 			},
 			Drop: map[string]string{
-				"MySQL":      `DROP TABLE tbl`,
-				"PostgreSQL": `DROP TABLE tbl`,
-				"SQLite":     `DROP TABLE tbl`,
+				"MySQL":      "DROP TABLE `tbl`",
+				"PostgreSQL": `DROP TABLE "tbl"`,
+				"SQLite":     `DROP TABLE "tbl"`,
 			},
 			Datas: []Data{
 				{

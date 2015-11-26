@@ -8,14 +8,9 @@ import (
 // Column represents database column.
 type Column struct {
 	parent        *Table
-	GoName        string // Column name in Go
+	Name          Name
 	GoStructField string // Struct field definition text in Go
 	SQLColumn     string // Column definition text in RDBMS including column constraint statement
-}
-
-// SQLName returns column name in RDBMS.
-func (c *Column) SQLName() string {
-	return strings.ToLower(c.GoName)
 }
 
 // GoStructFieldWithTag returns struct field definition text in Go including some tag data, such as
@@ -56,7 +51,7 @@ func (c *Column) GoStructFieldWithTag() string {
 // PrimaryKey reports whether this column is primary key.
 // if this column is the part of composite primary key, PrimaryKey returns false.
 func (c *Column) PrimaryKey() bool {
-	return len(c.parent.PrimaryKey.Column) == 1 && c.SQLName() == c.parent.PrimaryKey.Column[0].SQLName()
+	return len(c.parent.PrimaryKey.Column) == 1 && c.Name.SQL == c.parent.PrimaryKey.Column[0].Name.SQL
 }
 
 // ForeignKey returns foreign key mapping data.

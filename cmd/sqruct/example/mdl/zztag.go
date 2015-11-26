@@ -5,9 +5,9 @@ package mdl
 import "github.com/oov/sqruct"
 
 // Tag represents the following table.
-// 	CREATE TABLE tag(
-// 		id INTEGER PRIMARY KEY,
-// 		name VARCHAR(30) NOT NULL UNIQUE
+// 	CREATE TABLE "tag"(
+// 		"id" INTEGER PRIMARY KEY,
+// 		"name" VARCHAR(30) NOT NULL UNIQUE
 // 	);
 type Tag struct {
 	schema zzTag
@@ -19,7 +19,7 @@ func GetTag(db sqruct.DB, id int64) (*Tag, error) {
 
 	var t Tag
 	err := db.QueryRow(
-		"SELECT id, name FROM tag WHERE (id = ?)",
+		"SELECT \"id\", \"name\" FROM \"tag\" WHERE (\"id\" = ?)",
 		id,
 	).Scan(&t.ID, &t.Name)
 	if err != nil {
@@ -32,7 +32,7 @@ func GetTag(db sqruct.DB, id int64) (*Tag, error) {
 func (t *Tag) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 
 	r, err := db.Query(
-		"SELECT postid, tagid FROM posttag WHERE (tagid = ?)",
+		"SELECT \"postid\", \"tagid\" FROM \"posttag\" WHERE (\"tagid\" = ?)",
 		t.ID,
 	)
 	if err != nil {
@@ -58,7 +58,7 @@ func (t *Tag) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 func (t *Tag) SelectPost(db sqruct.DB) ([]Post, []PostTag, error) {
 
 	r, err := db.Query(
-		"SELECT post.id, post.accountid, post.at, post.message, posttag.postid, posttag.tagid FROM posttag, post WHERE (posttag.tagid = ?)AND(posttag.postid = post.id)",
+		"SELECT \"post\".\"id\", \"post\".\"accountid\", \"post\".\"at\", \"post\".\"message\", \"posttag\".\"postid\", \"posttag\".\"tagid\" FROM \"posttag\", \"post\" WHERE (\"posttag\".\"tagid\" = ?)AND(\"posttag\".\"postid\" = \"post\".\"id\")",
 		t.ID,
 	)
 	if err != nil {
@@ -97,7 +97,7 @@ func (t *Tag) Insert(db sqruct.DB) error {
 func (t *Tag) Update(db sqruct.DB) error {
 
 	_, err := db.Exec(
-		"UPDATE tag SET name = ? WHERE (id = ?)",
+		"UPDATE \"tag\" SET \"name\" = ? WHERE (\"id\" = ?)",
 		t.Name,
 		t.ID,
 	)
@@ -108,7 +108,7 @@ func (t *Tag) Update(db sqruct.DB) error {
 func (t *Tag) Delete(db sqruct.DB) error {
 
 	_, err := db.Exec(
-		"DELETE FROM tag WHERE (id = ?)",
+		"DELETE FROM \"tag\" WHERE (\"id\" = ?)",
 		t.ID,
 	)
 	return err

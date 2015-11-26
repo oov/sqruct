@@ -2,13 +2,28 @@ package gen
 
 import (
 	"bytes"
-	"strings"
+	"fmt"
 	"text/template"
 
 	"github.com/oov/sqruct"
 
 	"golang.org/x/tools/imports"
 )
+
+type Name struct {
+	Go  string
+	SQL string
+	m   sqruct.Mode
+}
+
+func (n *Name) SQLQuoted() string {
+	return n.m.Quote(n.SQL)
+}
+
+func (n *Name) SQLForGo() string {
+	s := fmt.Sprintf("%q", n.SQLQuoted())
+	return s[1 : len(s)-1]
+}
 
 // Table represents database table.
 type Table struct {
@@ -17,7 +32,7 @@ type Table struct {
 	CreateTableTemplate string
 	DropTableTemplate   string
 	SourceTemplate      string
-	GoName              string
+	Name                Name
 	Column              []*Column
 	ColumnAfter         []string
 	PrimaryKey          PrimaryKey
@@ -46,7 +61,7 @@ func (fk *ForeignKey) Match(cols []*Column) bool {
 loop:
 	for _, c := range cols {
 		for _, fc := range fk.Column {
-			if fc.Self.SQLName() == c.SQLName() {
+			if fc.Self.Name.SQL == c.Name.SQL {
 				continue loop
 			}
 		}
@@ -75,7 +90,7 @@ func (t *Table) ColumnByName(s string) *Column {
 	}
 
 	for _, v := range t.Column {
-		if v.SQLName() == s {
+		if v.Name.SQL == s {
 			return v
 		}
 	}
@@ -128,11 +143,6 @@ func (t *Table) AutoIncrementColumn() *Column {
 // PackageName returns package name in Go.
 func (t *Table) PackageName() string {
 	return t.parent.Config.Package
-}
-
-// SQLName returns table name in RDBMS.
-func (t *Table) SQLName() string {
-	return strings.ToLower(t.GoName)
 }
 
 // Mode returns current database mode.
