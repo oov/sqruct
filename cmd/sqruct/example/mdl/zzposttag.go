@@ -27,7 +27,7 @@ func GetPostTag(db sqruct.DB, postID int64, tagID int64) (*PostTag, error) {
 		q.Eq(tbl.C("tagid"), tagID),
 	).ToSQL()
 	var t PostTag
-	err := db.QueryRow(sql, args...).Scan(&t.PostID, &t.TagID)
+	err := db.QueryRow(sql, args...).Scan(zzPostTag{}.Pointers(&t))
 	if err != nil {
 		return nil, err
 	}

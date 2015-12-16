@@ -34,7 +34,7 @@ func {{$method}}(db sqruct.DB{{range $k, $v := .PrimaryKey.Column}}, {{$v.Name.G
 		{{end}}
 	).ToSQL()
 	var t {{.Name.Go}}
-  err := db.QueryRow(sql, args...).Scan({{range $k, $v := .Column}}{{if $k}}, {{end}}&t.{{$v.Name.Go}}{{end}})
+  err := db.QueryRow(sql, args...).Scan(zz{{.Name.Go}}{}.Pointers(&t))
 	if err != nil {
   	return nil, err
   }

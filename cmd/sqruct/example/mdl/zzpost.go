@@ -30,7 +30,7 @@ func GetPost(db sqruct.DB, id int64) (*Post, error) {
 		q.Eq(tbl.C("id"), id),
 	).ToSQL()
 	var t Post
-	err := db.QueryRow(sql, args...).Scan(&t.ID, &t.AccountID, &t.At, &t.Message)
+	err := db.QueryRow(sql, args...).Scan(zzPost{}.Pointers(&t))
 	if err != nil {
 		return nil, err
 	}

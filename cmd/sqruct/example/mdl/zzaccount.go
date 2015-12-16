@@ -23,7 +23,7 @@ func GetAccount(db sqruct.DB, id int64) (*Account, error) {
 		q.Eq(tbl.C("id"), id),
 	).ToSQL()
 	var t Account
-	err := db.QueryRow(sql, args...).Scan(&t.ID, &t.Name)
+	err := db.QueryRow(sql, args...).Scan(zzAccount{}.Pointers(&t))
 	if err != nil {
 		return nil, err
 	}
