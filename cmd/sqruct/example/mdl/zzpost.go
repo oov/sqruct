@@ -5,6 +5,7 @@ package mdl
 import (
 	"time"
 
+	"github.com/oov/q"
 	"github.com/oov/sqruct"
 )
 
@@ -17,7 +18,6 @@ import (
 // 		FOREIGN KEY (accountid) REFERENCES account(id) ON DELETE CASCADE
 // 	);
 type Post struct {
-	schema    zzPost
 	ID        int64     `mdl:"pk,notnull,uniq,default,autoincr"`
 	AccountID int64     `mdl:"fk,notnull"`
 	At        time.Time `mdl:"notnull"`
@@ -25,39 +25,36 @@ type Post struct {
 }
 
 func GetPost(db sqruct.DB, id int64) (*Post, error) {
-
+	b, tbl := zzPost{}.SelectBuilder()
+	sql, args := b.Where(
+		q.Eq(tbl.C("id"), id),
+	).ToSQL()
 	var t Post
-	err := db.QueryRow(
-		"SELECT \"id\", \"accountid\", \"at\", \"message\" FROM \"post\" WHERE (\"id\" = ?)",
-		id,
-	).Scan(&t.ID, &t.AccountID, &t.At, &t.Message)
+	err := db.QueryRow(sql, args...).Scan(&t.ID, &t.AccountID, &t.At, &t.Message)
 	if err != nil {
 		return nil, err
 	}
 	return &t, nil
-
 }
 
 func (t *Post) GetAccount(db sqruct.DB) (*Account, error) {
-
+	b, tbl := zzAccount{}.SelectBuilder()
+	sql, args := b.Where(
+		q.Eq(tbl.C("id"), t.AccountID),
+	).ToSQL()
 	var ot Account
-	err := db.QueryRow(
-		"SELECT \"id\", \"name\" FROM \"account\" WHERE (\"id\" = ?)",
-		t.AccountID,
-	).Scan(&ot.ID, &ot.Name)
-	if err != nil {
+	if err := db.QueryRow(sql, args...).Scan(zzAccount{}.Pointers(&ot)...); err != nil {
 		return nil, err
 	}
 	return &ot, nil
-
 }
 
 func (t *Post) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
-
-	r, err := db.Query(
-		"SELECT \"postid\", \"tagid\" FROM \"posttag\" WHERE (\"postid\" = ?)",
-		t.ID,
-	)
+	b, tbl := zzPostTag{}.SelectBuilder()
+	sql, args := b.Where(
+		q.Eq(tbl.C("postid"), t.ID),
+	).ToSQL()
+	r, err := db.Query(sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +63,7 @@ func (t *Post) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 	ot := []PostTag{}
 	for r.Next() {
 		var e PostTag
-		if err = r.Scan(&e.PostID, &e.TagID); err != nil {
+		if err = r.Scan(zzPostTag{}.Pointers(&e)...); err != nil {
 			return nil, err
 		}
 		ot = append(ot, e)
@@ -75,15 +72,14 @@ func (t *Post) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 		return nil, err
 	}
 	return ot, nil
-
 }
 
 func (t *Post) SelectTag(db sqruct.DB) ([]Tag, []PostTag, error) {
-
-	r, err := db.Query(
-		"SELECT \"tag\".\"id\", \"tag\".\"name\", \"posttag\".\"postid\", \"posttag\".\"tagid\" FROM \"posttag\", \"tag\" WHERE (\"posttag\".\"postid\" = ?)AND(\"posttag\".\"tagid\" = \"tag\".\"id\")",
-		t.ID,
-	)
+	b, relTbl, _ := zzPost{}.SelectBuilderForTag()
+	sql, args := b.Where(
+		q.Eq(relTbl.C("postid"), t.ID),
+	).ToSQL()
+	r, err := db.Query(sql, args...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -93,7 +89,7 @@ func (t *Post) SelectTag(db sqruct.DB) ([]Tag, []PostTag, error) {
 	for r.Next() {
 		var oe Tag
 		var re PostTag
-		if err = r.Scan(&oe.ID, &oe.Name, &re.PostID, &re.TagID); err != nil {
+		if err = r.Scan(append(zzPostTag{}.Pointers(&re), zzTag{}.Pointers(&oe)...)...); err != nil {
 			return nil, nil, err
 		}
 		ot, rt = append(ot, oe), append(rt, re)
@@ -106,61 +102,99 @@ func (t *Post) SelectTag(db sqruct.DB) ([]Tag, []PostTag, error) {
 
 func (t *Post) Insert(db sqruct.DB) error {
 
-	i, err := t.schema.Mode().Insert(db, t.schema.TableName(), t.schema.Columns(), t.schema.Values(t), t.schema.AutoIncrementColumnIndex())
+	b, tbl := zzPost{}.InsertBuilder(t)
+	if !sqruct.IsZero(t.ID) {
+		sql, args := b.Set(tbl.C("id"), t.ID).ToSQL()
+		_, err := db.Exec(sql, args...)
+		return err
+	}
+
+	sql, args := b.ToSQL()
+	r, err := db.Exec(sql, args...)
 	if err != nil {
 		return err
 	}
-	if i != 0 {
-		t.ID = i
+	var i int64
+	if i, err = r.LastInsertId(); err != nil {
+		return err
 	}
+
+	t.ID = i
 	return nil
 
 }
 
 func (t *Post) Update(db sqruct.DB) error {
-
-	_, err := db.Exec(
-		"UPDATE \"post\" SET \"accountid\" = ?, \"at\" = ?, \"message\" = ? WHERE (\"id\" = ?)",
-		t.AccountID, t.At, t.Message,
-		t.ID,
-	)
+	b, tbl := zzPost{}.UpdateBuilder(t)
+	sql, args := b.Where(
+		q.Eq(tbl.C("id"), t.ID),
+	).ToSQL()
+	_, err := db.Exec(sql, args...)
 	return err
-
 }
 
 func (t *Post) Delete(db sqruct.DB) error {
-
-	_, err := db.Exec(
-		"DELETE FROM \"post\" WHERE (\"id\" = ?)",
-		t.ID,
-	)
+	b, tbl := zzPost{}.DeleteBuilder()
+	sql, args := b.Where(
+		q.Eq(tbl.C("id"), t.ID),
+	).ToSQL()
+	_, err := db.Exec(sql, args...)
 	return err
-
 }
 
 // zzPost represents Post table schema.
 type zzPost struct{}
 
-func (zzPost) TableName() string {
-	return "post"
-}
-
-func (zzPost) Columns() []string {
-	return []string{"id", "accountid", "at", "message"}
-}
-
-func (zzPost) AutoIncrementColumnIndex() int {
-	return 0
-}
-
-func (zzPost) Values(t *Post) []interface{} {
-	return []interface{}{t.ID, t.AccountID, t.At, t.Message}
+func (zzPost) Columns(b *q.ZSelectBuilder, t q.Table) {
+	b.Column(
+		t.C("id"),
+		t.C("accountid"),
+		t.C("at"),
+		t.C("message"),
+	)
 }
 
 func (zzPost) Pointers(t *Post) []interface{} {
 	return []interface{}{&t.ID, &t.AccountID, &t.At, &t.Message}
 }
 
-func (zzPost) Mode() sqruct.Mode {
-	return sqruct.SQLite
+func (zzPost) InsertBuilder(t *Post) (*q.ZInsertBuilder, q.Table) {
+	tbl := q.T("post")
+	return q.Insert().Into(tbl).
+		Set(tbl.C("accountid"), t.AccountID).
+		Set(tbl.C("at"), t.At).
+		Set(tbl.C("message"), t.Message).
+		SetDialect(q.SQLite), tbl
+}
+
+func (zzPost) SelectBuilder() (*q.ZSelectBuilder, q.Table) {
+	tbl := q.T("post")
+	b := q.Select().From(tbl).SetDialect(q.SQLite)
+	zzPost{}.Columns(b, tbl)
+	return b, tbl
+}
+
+func (zzPost) SelectBuilderForTag() (b *q.ZSelectBuilder, postTag q.Table, tag q.Table) {
+	b, relTbl := zzPostTag{}.SelectBuilder()
+	oTbl := q.T("tag")
+	relTbl.InnerJoin(
+		oTbl,
+		q.Eq(relTbl.C("tagid"), oTbl.C("id")),
+	)
+	zzTag{}.Columns(b, oTbl)
+	return b, relTbl, oTbl
+}
+
+func (zzPost) UpdateBuilder(t *Post) (*q.ZUpdateBuilder, q.Table) {
+	tbl := q.T("post")
+	return q.Update(tbl).
+		Set(tbl.C("accountid"), t.AccountID).
+		Set(tbl.C("at"), t.At).
+		Set(tbl.C("message"), t.Message).
+		SetDialect(q.SQLite), tbl
+}
+
+func (zzPost) DeleteBuilder() (*q.ZDeleteBuilder, q.Table) {
+	tbl := q.T("post")
+	return q.Delete().From(tbl).SetDialect(q.SQLite), tbl
 }

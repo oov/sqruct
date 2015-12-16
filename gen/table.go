@@ -3,9 +3,8 @@ package gen
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"text/template"
-
-	"github.com/oov/sqruct"
 
 	"golang.org/x/tools/imports"
 )
@@ -13,16 +12,7 @@ import (
 type Name struct {
 	Go  string
 	SQL string
-	m   sqruct.Mode
-}
-
-func (n *Name) SQLQuoted() string {
-	return n.m.Quote(n.SQL)
-}
-
-func (n *Name) SQLForGo() string {
-	s := fmt.Sprintf("%q", n.SQLQuoted())
-	return s[1 : len(s)-1]
+	m   Mode
 }
 
 func (n *Name) GoLower() string {
@@ -34,6 +24,10 @@ func (n *Name) GoLower() string {
 		buf[i] += 'a' - 'A'
 	}
 	return string(buf)
+}
+
+func (n *Name) SQLQuoted() string {
+	return fmt.Sprintf("%q", n.SQL)
 }
 
 // Table represents database table.
@@ -157,7 +151,7 @@ func (t *Table) PackageName() string {
 }
 
 // Mode returns current database mode.
-func (t *Table) Mode() sqruct.Mode {
+func (t *Table) Mode() Mode {
 	return t.parent.Config.Mode
 }
 
@@ -230,10 +224,11 @@ func (t *Table) Source() (string, error) {
 		return "", err
 	}
 
-	b, err = imports.Process("", b, nil)
+	b2, err := imports.Process("", b, nil)
 	if err != nil {
-		return "", err
+		log.Println("WARN:", err)
+		return string(b), nil
 	}
 
-	return string(b), nil
+	return string(b2), nil
 }

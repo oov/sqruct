@@ -2,7 +2,10 @@
 
 package mdl
 
-import "github.com/oov/sqruct"
+import (
+	"github.com/oov/q"
+	"github.com/oov/sqruct"
+)
 
 // Account represents the following table.
 // 	CREATE TABLE "account"(
@@ -10,31 +13,29 @@ import "github.com/oov/sqruct"
 // 		"name" VARCHAR(30) NOT NULL UNIQUE
 // 	);
 type Account struct {
-	schema zzAccount
-	ID     int64  `mdl:"pk,notnull,uniq,default,autoincr"`
-	Name   string `mdl:"notnull,uniq"`
+	ID   int64  `mdl:"pk,notnull,uniq,default,autoincr"`
+	Name string `mdl:"notnull,uniq"`
 }
 
 func GetAccount(db sqruct.DB, id int64) (*Account, error) {
-
+	b, tbl := zzAccount{}.SelectBuilder()
+	sql, args := b.Where(
+		q.Eq(tbl.C("id"), id),
+	).ToSQL()
 	var t Account
-	err := db.QueryRow(
-		"SELECT \"id\", \"name\" FROM \"account\" WHERE (\"id\" = ?)",
-		id,
-	).Scan(&t.ID, &t.Name)
+	err := db.QueryRow(sql, args...).Scan(&t.ID, &t.Name)
 	if err != nil {
 		return nil, err
 	}
 	return &t, nil
-
 }
 
 func (t *Account) SelectPost(db sqruct.DB) ([]Post, error) {
-
-	r, err := db.Query(
-		"SELECT \"id\", \"accountid\", \"at\", \"message\" FROM \"post\" WHERE (\"accountid\" = ?)",
-		t.ID,
-	)
+	b, tbl := zzPost{}.SelectBuilder()
+	sql, args := b.Where(
+		q.Eq(tbl.C("accountid"), t.ID),
+	).ToSQL()
+	r, err := db.Query(sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +44,7 @@ func (t *Account) SelectPost(db sqruct.DB) ([]Post, error) {
 	ot := []Post{}
 	for r.Next() {
 		var e Post
-		if err = r.Scan(&e.ID, &e.AccountID, &e.At, &e.Message); err != nil {
+		if err = r.Scan(zzPost{}.Pointers(&e)...); err != nil {
 			return nil, err
 		}
 		ot = append(ot, e)
@@ -52,66 +53,86 @@ func (t *Account) SelectPost(db sqruct.DB) ([]Post, error) {
 		return nil, err
 	}
 	return ot, nil
-
 }
 
 func (t *Account) Insert(db sqruct.DB) error {
 
-	i, err := t.schema.Mode().Insert(db, t.schema.TableName(), t.schema.Columns(), t.schema.Values(t), t.schema.AutoIncrementColumnIndex())
+	b, tbl := zzAccount{}.InsertBuilder(t)
+	if !sqruct.IsZero(t.ID) {
+		sql, args := b.Set(tbl.C("id"), t.ID).ToSQL()
+		_, err := db.Exec(sql, args...)
+		return err
+	}
+
+	sql, args := b.ToSQL()
+	r, err := db.Exec(sql, args...)
 	if err != nil {
 		return err
 	}
-	if i != 0 {
-		t.ID = i
+	var i int64
+	if i, err = r.LastInsertId(); err != nil {
+		return err
 	}
+
+	t.ID = i
 	return nil
 
 }
 
 func (t *Account) Update(db sqruct.DB) error {
-
-	_, err := db.Exec(
-		"UPDATE \"account\" SET \"name\" = ? WHERE (\"id\" = ?)",
-		t.Name,
-		t.ID,
-	)
+	b, tbl := zzAccount{}.UpdateBuilder(t)
+	sql, args := b.Where(
+		q.Eq(tbl.C("id"), t.ID),
+	).ToSQL()
+	_, err := db.Exec(sql, args...)
 	return err
-
 }
 
 func (t *Account) Delete(db sqruct.DB) error {
-
-	_, err := db.Exec(
-		"DELETE FROM \"account\" WHERE (\"id\" = ?)",
-		t.ID,
-	)
+	b, tbl := zzAccount{}.DeleteBuilder()
+	sql, args := b.Where(
+		q.Eq(tbl.C("id"), t.ID),
+	).ToSQL()
+	_, err := db.Exec(sql, args...)
 	return err
-
 }
 
 // zzAccount represents Account table schema.
 type zzAccount struct{}
 
-func (zzAccount) TableName() string {
-	return "account"
-}
-
-func (zzAccount) Columns() []string {
-	return []string{"id", "name"}
-}
-
-func (zzAccount) AutoIncrementColumnIndex() int {
-	return 0
-}
-
-func (zzAccount) Values(t *Account) []interface{} {
-	return []interface{}{t.ID, t.Name}
+func (zzAccount) Columns(b *q.ZSelectBuilder, t q.Table) {
+	b.Column(
+		t.C("id"),
+		t.C("name"),
+	)
 }
 
 func (zzAccount) Pointers(t *Account) []interface{} {
 	return []interface{}{&t.ID, &t.Name}
 }
 
-func (zzAccount) Mode() sqruct.Mode {
-	return sqruct.SQLite
+func (zzAccount) InsertBuilder(t *Account) (*q.ZInsertBuilder, q.Table) {
+	tbl := q.T("account")
+	return q.Insert().Into(tbl).
+		Set(tbl.C("name"), t.Name).
+		SetDialect(q.SQLite), tbl
+}
+
+func (zzAccount) SelectBuilder() (*q.ZSelectBuilder, q.Table) {
+	tbl := q.T("account")
+	b := q.Select().From(tbl).SetDialect(q.SQLite)
+	zzAccount{}.Columns(b, tbl)
+	return b, tbl
+}
+
+func (zzAccount) UpdateBuilder(t *Account) (*q.ZUpdateBuilder, q.Table) {
+	tbl := q.T("account")
+	return q.Update(tbl).
+		Set(tbl.C("name"), t.Name).
+		SetDialect(q.SQLite), tbl
+}
+
+func (zzAccount) DeleteBuilder() (*q.ZDeleteBuilder, q.Table) {
+	tbl := q.T("account")
+	return q.Delete().From(tbl).SetDialect(q.SQLite), tbl
 }

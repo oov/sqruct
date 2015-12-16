@@ -2,7 +2,10 @@
 
 package mdl
 
-import "github.com/oov/sqruct"
+import (
+	"github.com/oov/q"
+	"github.com/oov/sqruct"
+)
 
 // Tag represents the following table.
 // 	CREATE TABLE "tag"(
@@ -10,31 +13,29 @@ import "github.com/oov/sqruct"
 // 		"name" VARCHAR(30) NOT NULL UNIQUE
 // 	);
 type Tag struct {
-	schema zzTag
-	ID     int64  `mdl:"pk,notnull,uniq,default,autoincr"`
-	Name   string `mdl:"notnull,uniq"`
+	ID   int64  `mdl:"pk,notnull,uniq,default,autoincr"`
+	Name string `mdl:"notnull,uniq"`
 }
 
 func GetTag(db sqruct.DB, id int64) (*Tag, error) {
-
+	b, tbl := zzTag{}.SelectBuilder()
+	sql, args := b.Where(
+		q.Eq(tbl.C("id"), id),
+	).ToSQL()
 	var t Tag
-	err := db.QueryRow(
-		"SELECT \"id\", \"name\" FROM \"tag\" WHERE (\"id\" = ?)",
-		id,
-	).Scan(&t.ID, &t.Name)
+	err := db.QueryRow(sql, args...).Scan(&t.ID, &t.Name)
 	if err != nil {
 		return nil, err
 	}
 	return &t, nil
-
 }
 
 func (t *Tag) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
-
-	r, err := db.Query(
-		"SELECT \"postid\", \"tagid\" FROM \"posttag\" WHERE (\"tagid\" = ?)",
-		t.ID,
-	)
+	b, tbl := zzPostTag{}.SelectBuilder()
+	sql, args := b.Where(
+		q.Eq(tbl.C("tagid"), t.ID),
+	).ToSQL()
+	r, err := db.Query(sql, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +44,7 @@ func (t *Tag) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 	ot := []PostTag{}
 	for r.Next() {
 		var e PostTag
-		if err = r.Scan(&e.PostID, &e.TagID); err != nil {
+		if err = r.Scan(zzPostTag{}.Pointers(&e)...); err != nil {
 			return nil, err
 		}
 		ot = append(ot, e)
@@ -52,15 +53,14 @@ func (t *Tag) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 		return nil, err
 	}
 	return ot, nil
-
 }
 
 func (t *Tag) SelectPost(db sqruct.DB) ([]Post, []PostTag, error) {
-
-	r, err := db.Query(
-		"SELECT \"post\".\"id\", \"post\".\"accountid\", \"post\".\"at\", \"post\".\"message\", \"posttag\".\"postid\", \"posttag\".\"tagid\" FROM \"posttag\", \"post\" WHERE (\"posttag\".\"tagid\" = ?)AND(\"posttag\".\"postid\" = \"post\".\"id\")",
-		t.ID,
-	)
+	b, relTbl, _ := zzTag{}.SelectBuilderForPost()
+	sql, args := b.Where(
+		q.Eq(relTbl.C("tagid"), t.ID),
+	).ToSQL()
+	r, err := db.Query(sql, args...)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -70,7 +70,7 @@ func (t *Tag) SelectPost(db sqruct.DB) ([]Post, []PostTag, error) {
 	for r.Next() {
 		var oe Post
 		var re PostTag
-		if err = r.Scan(&oe.ID, &oe.AccountID, &oe.At, &oe.Message, &re.PostID, &re.TagID); err != nil {
+		if err = r.Scan(append(zzPostTag{}.Pointers(&re), zzPost{}.Pointers(&oe)...)...); err != nil {
 			return nil, nil, err
 		}
 		ot, rt = append(ot, oe), append(rt, re)
@@ -83,61 +83,93 @@ func (t *Tag) SelectPost(db sqruct.DB) ([]Post, []PostTag, error) {
 
 func (t *Tag) Insert(db sqruct.DB) error {
 
-	i, err := t.schema.Mode().Insert(db, t.schema.TableName(), t.schema.Columns(), t.schema.Values(t), t.schema.AutoIncrementColumnIndex())
+	b, tbl := zzTag{}.InsertBuilder(t)
+	if !sqruct.IsZero(t.ID) {
+		sql, args := b.Set(tbl.C("id"), t.ID).ToSQL()
+		_, err := db.Exec(sql, args...)
+		return err
+	}
+
+	sql, args := b.ToSQL()
+	r, err := db.Exec(sql, args...)
 	if err != nil {
 		return err
 	}
-	if i != 0 {
-		t.ID = i
+	var i int64
+	if i, err = r.LastInsertId(); err != nil {
+		return err
 	}
+
+	t.ID = i
 	return nil
 
 }
 
 func (t *Tag) Update(db sqruct.DB) error {
-
-	_, err := db.Exec(
-		"UPDATE \"tag\" SET \"name\" = ? WHERE (\"id\" = ?)",
-		t.Name,
-		t.ID,
-	)
+	b, tbl := zzTag{}.UpdateBuilder(t)
+	sql, args := b.Where(
+		q.Eq(tbl.C("id"), t.ID),
+	).ToSQL()
+	_, err := db.Exec(sql, args...)
 	return err
-
 }
 
 func (t *Tag) Delete(db sqruct.DB) error {
-
-	_, err := db.Exec(
-		"DELETE FROM \"tag\" WHERE (\"id\" = ?)",
-		t.ID,
-	)
+	b, tbl := zzTag{}.DeleteBuilder()
+	sql, args := b.Where(
+		q.Eq(tbl.C("id"), t.ID),
+	).ToSQL()
+	_, err := db.Exec(sql, args...)
 	return err
-
 }
 
 // zzTag represents Tag table schema.
 type zzTag struct{}
 
-func (zzTag) TableName() string {
-	return "tag"
-}
-
-func (zzTag) Columns() []string {
-	return []string{"id", "name"}
-}
-
-func (zzTag) AutoIncrementColumnIndex() int {
-	return 0
-}
-
-func (zzTag) Values(t *Tag) []interface{} {
-	return []interface{}{t.ID, t.Name}
+func (zzTag) Columns(b *q.ZSelectBuilder, t q.Table) {
+	b.Column(
+		t.C("id"),
+		t.C("name"),
+	)
 }
 
 func (zzTag) Pointers(t *Tag) []interface{} {
 	return []interface{}{&t.ID, &t.Name}
 }
 
-func (zzTag) Mode() sqruct.Mode {
-	return sqruct.SQLite
+func (zzTag) InsertBuilder(t *Tag) (*q.ZInsertBuilder, q.Table) {
+	tbl := q.T("tag")
+	return q.Insert().Into(tbl).
+		Set(tbl.C("name"), t.Name).
+		SetDialect(q.SQLite), tbl
+}
+
+func (zzTag) SelectBuilder() (*q.ZSelectBuilder, q.Table) {
+	tbl := q.T("tag")
+	b := q.Select().From(tbl).SetDialect(q.SQLite)
+	zzTag{}.Columns(b, tbl)
+	return b, tbl
+}
+
+func (zzTag) SelectBuilderForPost() (b *q.ZSelectBuilder, postTag q.Table, post q.Table) {
+	b, relTbl := zzPostTag{}.SelectBuilder()
+	oTbl := q.T("post")
+	relTbl.InnerJoin(
+		oTbl,
+		q.Eq(relTbl.C("postid"), oTbl.C("id")),
+	)
+	zzPost{}.Columns(b, oTbl)
+	return b, relTbl, oTbl
+}
+
+func (zzTag) UpdateBuilder(t *Tag) (*q.ZUpdateBuilder, q.Table) {
+	tbl := q.T("tag")
+	return q.Update(tbl).
+		Set(tbl.C("name"), t.Name).
+		SetDialect(q.SQLite), tbl
+}
+
+func (zzTag) DeleteBuilder() (*q.ZDeleteBuilder, q.Table) {
+	tbl := q.T("tag")
+	return q.Delete().From(tbl).SetDialect(q.SQLite), tbl
 }
