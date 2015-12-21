@@ -23,11 +23,11 @@ type PostTag struct {
 func GetPostTag(db sqruct.DB, postID int64, tagID int64) (*PostTag, error) {
 	b, tbl := zzPostTag{}.SelectBuilder()
 	sql, args := b.Where(
-		q.Eq(tbl.C("postid"), postID),
-		q.Eq(tbl.C("tagid"), tagID),
+		q.Eq(tbl.PostID(), postID),
+		q.Eq(tbl.TagID(), tagID),
 	).ToSQL()
 	var t PostTag
-	err := db.QueryRow(sql, args...).Scan(zzPostTag{}.Pointers(&t))
+	err := db.QueryRow(sql, args...).Scan(zzPostTag{}.Pointers(&t)...)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func GetPostTag(db sqruct.DB, postID int64, tagID int64) (*PostTag, error) {
 func (t *PostTag) GetPost(db sqruct.DB) (*Post, error) {
 	b, tbl := zzPost{}.SelectBuilder()
 	sql, args := b.Where(
-		q.Eq(tbl.C("id"), t.PostID),
+		q.Eq(tbl.ID(), t.PostID),
 	).ToSQL()
 	var ot Post
 	if err := db.QueryRow(sql, args...).Scan(zzPost{}.Pointers(&ot)...); err != nil {
@@ -49,7 +49,7 @@ func (t *PostTag) GetPost(db sqruct.DB) (*Post, error) {
 func (t *PostTag) GetTag(db sqruct.DB) (*Tag, error) {
 	b, tbl := zzTag{}.SelectBuilder()
 	sql, args := b.Where(
-		q.Eq(tbl.C("id"), t.TagID),
+		q.Eq(tbl.ID(), t.TagID),
 	).ToSQL()
 	var ot Tag
 	if err := db.QueryRow(sql, args...).Scan(zzTag{}.Pointers(&ot)...); err != nil {
@@ -75,8 +75,8 @@ func (t *PostTag) Update(db sqruct.DB) error {
 func (t *PostTag) Delete(db sqruct.DB) error {
 	b, tbl := zzPostTag{}.DeleteBuilder()
 	sql, args := b.Where(
-		q.Eq(tbl.C("postid"), t.PostID),
-		q.Eq(tbl.C("tagid"), t.TagID),
+		q.Eq(tbl.PostID(), t.PostID),
+		q.Eq(tbl.TagID(), t.TagID),
 	).ToSQL()
 	_, err := db.Exec(sql, args...)
 	return err
@@ -85,10 +85,14 @@ func (t *PostTag) Delete(db sqruct.DB) error {
 // zzPostTag represents PostTag table schema.
 type zzPostTag struct{}
 
-func (zzPostTag) Columns(b *q.ZSelectBuilder, t q.Table) {
+func (zzPostTag) T(aliasName ...string) *zzPostTagTable {
+	return &zzPostTagTable{q.T("posttag", aliasName...)}
+}
+
+func (zzPostTag) Columns(b *q.ZSelectBuilder, t *zzPostTagTable) {
 	b.Column(
-		t.C("postid"),
-		t.C("tagid"),
+		t.PostID(),
+		t.TagID(),
 	)
 }
 
@@ -96,28 +100,39 @@ func (zzPostTag) Pointers(t *PostTag) []interface{} {
 	return []interface{}{&t.PostID, &t.TagID}
 }
 
-func (zzPostTag) InsertBuilder(t *PostTag) (*q.ZInsertBuilder, q.Table) {
-	tbl := q.T("posttag")
+func (zzPostTag) InsertBuilder(t *PostTag) (*q.ZInsertBuilder, *zzPostTagTable) {
+	tbl := zzPostTag{}.T()
 	return q.Insert().Into(tbl).
-		Set(tbl.C("postid"), t.PostID).
-		Set(tbl.C("tagid"), t.TagID).
+		Set(tbl.PostID(), t.PostID).
+		Set(tbl.TagID(), t.TagID).
 		SetDialect(q.SQLite), tbl
 }
 
-func (zzPostTag) SelectBuilder() (*q.ZSelectBuilder, q.Table) {
-	tbl := q.T("posttag")
+func (zzPostTag) SelectBuilder() (*q.ZSelectBuilder, *zzPostTagTable) {
+	tbl := zzPostTag{}.T()
 	b := q.Select().From(tbl).SetDialect(q.SQLite)
 	zzPostTag{}.Columns(b, tbl)
 	return b, tbl
 }
 
-func (zzPostTag) UpdateBuilder(t *PostTag) (*q.ZUpdateBuilder, q.Table) {
-	tbl := q.T("posttag")
+func (zzPostTag) UpdateBuilder(t *PostTag) (*q.ZUpdateBuilder, *zzPostTagTable) {
+	tbl := zzPostTag{}.T()
 	return q.Update(tbl).
 		SetDialect(q.SQLite), tbl
 }
 
-func (zzPostTag) DeleteBuilder() (*q.ZDeleteBuilder, q.Table) {
-	tbl := q.T("posttag")
+func (zzPostTag) DeleteBuilder() (*q.ZDeleteBuilder, *zzPostTagTable) {
+	tbl := zzPostTag{}.T()
 	return q.Delete().From(tbl).SetDialect(q.SQLite), tbl
+}
+
+// zzPostTagTable represents PostTag table.
+type zzPostTagTable struct{ q.Table }
+
+func (t zzPostTagTable) PostID(aliasName ...string) q.Column {
+	return t.Table.C("postid", aliasName...)
+}
+
+func (t zzPostTagTable) TagID(aliasName ...string) q.Column {
+	return t.Table.C("tagid", aliasName...)
 }

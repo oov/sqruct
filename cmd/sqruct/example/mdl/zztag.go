@@ -20,10 +20,10 @@ type Tag struct {
 func GetTag(db sqruct.DB, id int64) (*Tag, error) {
 	b, tbl := zzTag{}.SelectBuilder()
 	sql, args := b.Where(
-		q.Eq(tbl.C("id"), id),
+		q.Eq(tbl.ID(), id),
 	).ToSQL()
 	var t Tag
-	err := db.QueryRow(sql, args...).Scan(zzTag{}.Pointers(&t))
+	err := db.QueryRow(sql, args...).Scan(zzTag{}.Pointers(&t)...)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func GetTag(db sqruct.DB, id int64) (*Tag, error) {
 func (t *Tag) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 	b, tbl := zzPostTag{}.SelectBuilder()
 	sql, args := b.Where(
-		q.Eq(tbl.C("tagid"), t.ID),
+		q.Eq(tbl.TagID(), t.ID),
 	).ToSQL()
 	r, err := db.Query(sql, args...)
 	if err != nil {
@@ -58,7 +58,7 @@ func (t *Tag) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 func (t *Tag) SelectPost(db sqruct.DB) ([]Post, []PostTag, error) {
 	b, relTbl, _ := zzTag{}.SelectBuilderForPost()
 	sql, args := b.Where(
-		q.Eq(relTbl.C("tagid"), t.ID),
+		q.Eq(relTbl.TagID(), t.ID),
 	).ToSQL()
 	r, err := db.Query(sql, args...)
 	if err != nil {
@@ -85,7 +85,7 @@ func (t *Tag) Insert(db sqruct.DB) error {
 
 	b, tbl := zzTag{}.InsertBuilder(t)
 	if !sqruct.IsZero(t.ID) {
-		sql, args := b.Set(tbl.C("id"), t.ID).ToSQL()
+		sql, args := b.Set(tbl.ID(), t.ID).ToSQL()
 		_, err := db.Exec(sql, args...)
 		return err
 	}
@@ -108,7 +108,7 @@ func (t *Tag) Insert(db sqruct.DB) error {
 func (t *Tag) Update(db sqruct.DB) error {
 	b, tbl := zzTag{}.UpdateBuilder(t)
 	sql, args := b.Where(
-		q.Eq(tbl.C("id"), t.ID),
+		q.Eq(tbl.ID(), t.ID),
 	).ToSQL()
 	_, err := db.Exec(sql, args...)
 	return err
@@ -117,7 +117,7 @@ func (t *Tag) Update(db sqruct.DB) error {
 func (t *Tag) Delete(db sqruct.DB) error {
 	b, tbl := zzTag{}.DeleteBuilder()
 	sql, args := b.Where(
-		q.Eq(tbl.C("id"), t.ID),
+		q.Eq(tbl.ID(), t.ID),
 	).ToSQL()
 	_, err := db.Exec(sql, args...)
 	return err
@@ -126,10 +126,14 @@ func (t *Tag) Delete(db sqruct.DB) error {
 // zzTag represents Tag table schema.
 type zzTag struct{}
 
-func (zzTag) Columns(b *q.ZSelectBuilder, t q.Table) {
+func (zzTag) T(aliasName ...string) *zzTagTable {
+	return &zzTagTable{q.T("tag", aliasName...)}
+}
+
+func (zzTag) Columns(b *q.ZSelectBuilder, t *zzTagTable) {
 	b.Column(
-		t.C("id"),
-		t.C("name"),
+		t.ID(),
+		t.Name(),
 	)
 }
 
@@ -137,39 +141,50 @@ func (zzTag) Pointers(t *Tag) []interface{} {
 	return []interface{}{&t.ID, &t.Name}
 }
 
-func (zzTag) InsertBuilder(t *Tag) (*q.ZInsertBuilder, q.Table) {
-	tbl := q.T("tag")
+func (zzTag) InsertBuilder(t *Tag) (*q.ZInsertBuilder, *zzTagTable) {
+	tbl := zzTag{}.T()
 	return q.Insert().Into(tbl).
-		Set(tbl.C("name"), t.Name).
+		Set(tbl.Name(), t.Name).
 		SetDialect(q.SQLite), tbl
 }
 
-func (zzTag) SelectBuilder() (*q.ZSelectBuilder, q.Table) {
-	tbl := q.T("tag")
+func (zzTag) SelectBuilder() (*q.ZSelectBuilder, *zzTagTable) {
+	tbl := zzTag{}.T()
 	b := q.Select().From(tbl).SetDialect(q.SQLite)
 	zzTag{}.Columns(b, tbl)
 	return b, tbl
 }
 
-func (zzTag) SelectBuilderForPost() (b *q.ZSelectBuilder, postTag q.Table, post q.Table) {
+func (zzTag) SelectBuilderForPost() (b *q.ZSelectBuilder, postTag *zzPostTagTable, post *zzPostTable) {
 	b, relTbl := zzPostTag{}.SelectBuilder()
-	oTbl := q.T("post")
+	oTbl := zzPost{}.T()
 	relTbl.InnerJoin(
 		oTbl,
-		q.Eq(relTbl.C("postid"), oTbl.C("id")),
+		q.Eq(relTbl.PostID(), oTbl.ID()),
 	)
 	zzPost{}.Columns(b, oTbl)
 	return b, relTbl, oTbl
 }
 
-func (zzTag) UpdateBuilder(t *Tag) (*q.ZUpdateBuilder, q.Table) {
-	tbl := q.T("tag")
+func (zzTag) UpdateBuilder(t *Tag) (*q.ZUpdateBuilder, *zzTagTable) {
+	tbl := zzTag{}.T()
 	return q.Update(tbl).
-		Set(tbl.C("name"), t.Name).
+		Set(tbl.Name(), t.Name).
 		SetDialect(q.SQLite), tbl
 }
 
-func (zzTag) DeleteBuilder() (*q.ZDeleteBuilder, q.Table) {
-	tbl := q.T("tag")
+func (zzTag) DeleteBuilder() (*q.ZDeleteBuilder, *zzTagTable) {
+	tbl := zzTag{}.T()
 	return q.Delete().From(tbl).SetDialect(q.SQLite), tbl
+}
+
+// zzTagTable represents Tag table.
+type zzTagTable struct{ q.Table }
+
+func (t zzTagTable) ID(aliasName ...string) q.Column {
+	return t.Table.C("id", aliasName...)
+}
+
+func (t zzTagTable) Name(aliasName ...string) q.Column {
+	return t.Table.C("name", aliasName...)
 }

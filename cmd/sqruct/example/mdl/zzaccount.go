@@ -20,10 +20,10 @@ type Account struct {
 func GetAccount(db sqruct.DB, id int64) (*Account, error) {
 	b, tbl := zzAccount{}.SelectBuilder()
 	sql, args := b.Where(
-		q.Eq(tbl.C("id"), id),
+		q.Eq(tbl.ID(), id),
 	).ToSQL()
 	var t Account
-	err := db.QueryRow(sql, args...).Scan(zzAccount{}.Pointers(&t))
+	err := db.QueryRow(sql, args...).Scan(zzAccount{}.Pointers(&t)...)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func GetAccount(db sqruct.DB, id int64) (*Account, error) {
 func (t *Account) SelectPost(db sqruct.DB) ([]Post, error) {
 	b, tbl := zzPost{}.SelectBuilder()
 	sql, args := b.Where(
-		q.Eq(tbl.C("accountid"), t.ID),
+		q.Eq(tbl.AccountID(), t.ID),
 	).ToSQL()
 	r, err := db.Query(sql, args...)
 	if err != nil {
@@ -59,7 +59,7 @@ func (t *Account) Insert(db sqruct.DB) error {
 
 	b, tbl := zzAccount{}.InsertBuilder(t)
 	if !sqruct.IsZero(t.ID) {
-		sql, args := b.Set(tbl.C("id"), t.ID).ToSQL()
+		sql, args := b.Set(tbl.ID(), t.ID).ToSQL()
 		_, err := db.Exec(sql, args...)
 		return err
 	}
@@ -82,7 +82,7 @@ func (t *Account) Insert(db sqruct.DB) error {
 func (t *Account) Update(db sqruct.DB) error {
 	b, tbl := zzAccount{}.UpdateBuilder(t)
 	sql, args := b.Where(
-		q.Eq(tbl.C("id"), t.ID),
+		q.Eq(tbl.ID(), t.ID),
 	).ToSQL()
 	_, err := db.Exec(sql, args...)
 	return err
@@ -91,7 +91,7 @@ func (t *Account) Update(db sqruct.DB) error {
 func (t *Account) Delete(db sqruct.DB) error {
 	b, tbl := zzAccount{}.DeleteBuilder()
 	sql, args := b.Where(
-		q.Eq(tbl.C("id"), t.ID),
+		q.Eq(tbl.ID(), t.ID),
 	).ToSQL()
 	_, err := db.Exec(sql, args...)
 	return err
@@ -100,10 +100,14 @@ func (t *Account) Delete(db sqruct.DB) error {
 // zzAccount represents Account table schema.
 type zzAccount struct{}
 
-func (zzAccount) Columns(b *q.ZSelectBuilder, t q.Table) {
+func (zzAccount) T(aliasName ...string) *zzAccountTable {
+	return &zzAccountTable{q.T("account", aliasName...)}
+}
+
+func (zzAccount) Columns(b *q.ZSelectBuilder, t *zzAccountTable) {
 	b.Column(
-		t.C("id"),
-		t.C("name"),
+		t.ID(),
+		t.Name(),
 	)
 }
 
@@ -111,28 +115,39 @@ func (zzAccount) Pointers(t *Account) []interface{} {
 	return []interface{}{&t.ID, &t.Name}
 }
 
-func (zzAccount) InsertBuilder(t *Account) (*q.ZInsertBuilder, q.Table) {
-	tbl := q.T("account")
+func (zzAccount) InsertBuilder(t *Account) (*q.ZInsertBuilder, *zzAccountTable) {
+	tbl := zzAccount{}.T()
 	return q.Insert().Into(tbl).
-		Set(tbl.C("name"), t.Name).
+		Set(tbl.Name(), t.Name).
 		SetDialect(q.SQLite), tbl
 }
 
-func (zzAccount) SelectBuilder() (*q.ZSelectBuilder, q.Table) {
-	tbl := q.T("account")
+func (zzAccount) SelectBuilder() (*q.ZSelectBuilder, *zzAccountTable) {
+	tbl := zzAccount{}.T()
 	b := q.Select().From(tbl).SetDialect(q.SQLite)
 	zzAccount{}.Columns(b, tbl)
 	return b, tbl
 }
 
-func (zzAccount) UpdateBuilder(t *Account) (*q.ZUpdateBuilder, q.Table) {
-	tbl := q.T("account")
+func (zzAccount) UpdateBuilder(t *Account) (*q.ZUpdateBuilder, *zzAccountTable) {
+	tbl := zzAccount{}.T()
 	return q.Update(tbl).
-		Set(tbl.C("name"), t.Name).
+		Set(tbl.Name(), t.Name).
 		SetDialect(q.SQLite), tbl
 }
 
-func (zzAccount) DeleteBuilder() (*q.ZDeleteBuilder, q.Table) {
-	tbl := q.T("account")
+func (zzAccount) DeleteBuilder() (*q.ZDeleteBuilder, *zzAccountTable) {
+	tbl := zzAccount{}.T()
 	return q.Delete().From(tbl).SetDialect(q.SQLite), tbl
+}
+
+// zzAccountTable represents Account table.
+type zzAccountTable struct{ q.Table }
+
+func (t zzAccountTable) ID(aliasName ...string) q.Column {
+	return t.Table.C("id", aliasName...)
+}
+
+func (t zzAccountTable) Name(aliasName ...string) q.Column {
+	return t.Table.C("name", aliasName...)
 }

@@ -30,7 +30,7 @@ type {{.Name.Go}} struct {
 func {{$method}}(db sqruct.DB{{range $k, $v := .PrimaryKey.Column}}, {{$v.Name.GoLower}} {{$v.GoStructFieldType}}{{end}}) (*{{.Name.Go}}, error) {
 	b, tbl := zz{{.Name.Go}}{}.SelectBuilder()
 	sql, args := b.Where(
-		{{range $k, $v := .PrimaryKey.Column}}q.Eq(tbl.C({{$v.Name.SQLQuoted}}), {{$v.Name.GoLower}}),
+		{{range $k, $v := .PrimaryKey.Column}}q.Eq(tbl.{{$v.Name.Go}}(), {{$v.Name.GoLower}}),
 		{{end}}
 	).ToSQL()
 	var t {{.Name.Go}}
@@ -50,7 +50,7 @@ func {{$method}}(db sqruct.DB{{range $k, $v := .PrimaryKey.Column}}, {{$v.Name.G
 func (t *{{$t.Name.Go}}) {{$method}}(db sqruct.DB) (*{{$fk.Table.Name.Go}}, error) {
 	b, tbl := zz{{$fk.Table.Name.Go}}{}.SelectBuilder()
 	sql, args := b.Where(
-		{{range $k, $v := $fk.Column}}q.Eq(tbl.C({{$v.Other.Name.SQLQuoted}}), t.{{$v.Self.Name.Go}}),
+		{{range $k, $v := $fk.Column}}q.Eq(tbl.{{$v.Other.Name.Go}}(), t.{{$v.Self.Name.Go}}),
 		{{end}}
 	).ToSQL()
 	var ot {{$fk.Table.Name.Go}}
@@ -66,7 +66,7 @@ func (t *{{$t.Name.Go}}) {{$method}}(db sqruct.DB) (*{{$fk.Table.Name.Go}}, erro
 func (t *{{$t.Name.Go}}) {{$method}}(db sqruct.DB) ([]{{$fk.Table.Name.Go}}, error) {
 	b, tbl := zz{{$fk.Table.Name.Go}}{}.SelectBuilder()
 	sql, args := b.Where(
-		{{range $k, $v := $fk.Column}}q.Eq(tbl.C({{$v.Other.Name.SQLQuoted}}), t.{{$v.Self.Name.Go}}),
+		{{range $k, $v := $fk.Column}}q.Eq(tbl.{{$v.Other.Name.Go}}(), t.{{$v.Self.Name.Go}}),
 		{{end}}
 	).ToSQL()
 	r, err := db.Query(sql, args...)
@@ -101,7 +101,7 @@ func (t *{{$t.Name.Go}}) {{$method}}(db sqruct.DB) ([]{{$fk.Table.Name.Go}}, err
 func (t *{{$t.Name.Go}}) {{$method}}(db sqruct.DB) ([]{{$oTable.Name.Go}}, []{{$relTable.Name.Go}}, error) {
 	b, relTbl, _ := zz{{$t.Name.Go}}{}.SelectBuilderFor{{$oTable.Name.Go}}()
 	sql, args := b.Where(
-		{{range $k, $v := $m2m.MyFK.Column}}q.Eq(relTbl.C({{$v.Self.Name.SQLQuoted}}), t.{{$v.Other.Name.Go}}),
+		{{range $k, $v := $m2m.MyFK.Column}}q.Eq(relTbl.{{$v.Self.Name.Go}}(), t.{{$v.Other.Name.Go}}),
 		{{end}}
 	).ToSQL()
 	r, err := db.Query(sql, args...)
@@ -134,13 +134,13 @@ func (t *{{.Name.Go}}) {{$method}}(db sqruct.DB) error {
 	{{if $aicol}}
 		b, tbl := zz{{.Name.Go}}{}.InsertBuilder(t)
 		if !sqruct.IsZero(t.{{$aicol.Name.Go}}) {
-			sql, args := b.Set(tbl.C({{$aicol.Name.SQLQuoted}}), t.{{$aicol.Name.Go}}).ToSQL()
+			sql, args := b.Set(tbl.{{$aicol.Name.Go}}(), t.{{$aicol.Name.Go}}).ToSQL()
 			_, err := db.Exec(sql, args...)
 			return err
 		}
 
 		{{if eq .Mode.String "PostgreSQL"}}
-			sql, args := b.Returning(tbl.C({{$aicol.Name.SQLQuoted}})).ToSQL()
+			sql, args := b.Returning(tbl.{{$aicol.Name.Go}}()).ToSQL()
 			var i int64
 			if err := db.QueryRow(sql, args...).Scan(&i); err != nil {
 				return err
@@ -173,7 +173,7 @@ func (t *{{.Name.Go}}) {{$method}}(db sqruct.DB) error {
 func (t *{{.Name.Go}}) {{$method}}(db sqruct.DB) error {
 	b, tbl := zz{{.Name.Go}}{}.UpdateBuilder(t)
 	sql, args := b.Where(
-		{{range $_, $v := .PrimaryKey.Column}}q.Eq(tbl.C({{$v.Name.SQLQuoted}}), t.{{$v.Name.Go}}),
+		{{range $_, $v := .PrimaryKey.Column}}q.Eq(tbl.{{$v.Name.Go}}(), t.{{$v.Name.Go}}),
 		{{end}}
 	).ToSQL()
 	_, err := db.Exec(sql, args...)
@@ -192,7 +192,7 @@ func (t *{{.Name.Go}}) {{$method}}(db sqruct.DB) error {
 func (t *{{.Name.Go}}) {{$method}}(db sqruct.DB) error {
 	b, tbl := zz{{.Name.Go}}{}.DeleteBuilder()
 	sql, args := b.Where(
-		{{range $_, $v := .PrimaryKey.Column}}q.Eq(tbl.C({{$v.Name.SQLQuoted}}), t.{{$v.Name.Go}}),
+		{{range $_, $v := .PrimaryKey.Column}}q.Eq(tbl.{{$v.Name.Go}}(), t.{{$v.Name.Go}}),
 		{{end}}
 	).ToSQL()
 	_, err := db.Exec(sql, args...)
@@ -203,11 +203,18 @@ func (t *{{.Name.Go}}) {{$method}}(db sqruct.DB) error {
 // zz{{.Name.Go}} represents {{.Name.Go}} table schema.
 type zz{{.Name.Go}} struct {}
 
+{{$method := "T"}}
+{{if .OmitMethod $method}}/*{{end}}
+func (zz{{.Name.Go}}) {{$method}}(aliasName ...string) *zz{{.Name.Go}}Table {
+	return &zz{{.Name.Go}}Table{q.T({{.Name.SQLQuoted}}, aliasName...)}
+}
+{{if .OmitMethod $method}}*/{{end}}
+
 {{$method := "Columns"}}
 {{if .OmitMethod $method}}/*{{end}}
-func (zz{{.Name.Go}}) {{$method}}(b *q.ZSelectBuilder, t q.Table) {
+func (zz{{.Name.Go}}) {{$method}}(b *q.ZSelectBuilder, t *zz{{.Name.Go}}Table) {
 	b.Column(
-		{{range $_, $v := .Column}}t.C({{$v.Name.SQLQuoted}}),
+		{{range $_, $v := .Column}}t.{{$v.Name.Go}}(),
 		{{end}}
 	)
 }
@@ -222,12 +229,12 @@ func (zz{{.Name.Go}}) {{$method}}(t *{{.Name.Go}}) []interface{} {
 
 {{$method := "InsertBuilder"}}
 {{if .OmitMethod $method}}/*{{end}}
-func (zz{{.Name.Go}}) {{$method}}(t *{{.Name.Go}}) (*q.ZInsertBuilder, q.Table) {
-	tbl := q.T({{.Name.SQLQuoted}})
+func (zz{{.Name.Go}}) {{$method}}(t *{{.Name.Go}}) (*q.ZInsertBuilder, *zz{{.Name.Go}}Table) {
+	tbl := zz{{.Name.Go}}{}.T()
 	return q.Insert().Into(tbl).
 		{{range $k, $v := .Column}}
 			{{if not $v.AutoIncrement}}
-				Set(tbl.C({{$v.Name.SQLQuoted}}), t.{{$v.Name.Go}}).
+				Set(tbl.{{$v.Name.Go}}(), t.{{$v.Name.Go}}).
 			{{end}}
 		{{end}}
 		SetDialect(q.{{.Mode}}), tbl
@@ -236,8 +243,8 @@ func (zz{{.Name.Go}}) {{$method}}(t *{{.Name.Go}}) (*q.ZInsertBuilder, q.Table) 
 
 {{$method := "SelectBuilder"}}
 {{if .OmitMethod $method}}/*{{end}}
-func (zz{{.Name.Go}}) {{$method}}() (*q.ZSelectBuilder, q.Table) {
-	tbl := q.T({{.Name.SQLQuoted}})
+func (zz{{.Name.Go}}) {{$method}}() (*q.ZSelectBuilder, *zz{{.Name.Go}}Table) {
+	tbl := zz{{.Name.Go}}{}.T()
 	b := q.Select().From(tbl).SetDialect(q.{{.Mode}})
 	zz{{.Name.Go}}{}.Columns(b, tbl)
 	return b, tbl
@@ -250,12 +257,12 @@ func (zz{{.Name.Go}}) {{$method}}() (*q.ZSelectBuilder, q.Table) {
 {{$oTable := $m2m.OtherFK.Table}}
 {{$method := print "SelectBuilderFor" $oTable.Name.Go}}
 {{if $t.OmitMethod $method}}/*{{end}}
-func (zz{{$t.Name.Go}}) {{$method}}() (b *q.ZSelectBuilder, {{$relTable.Name.GoLower}} q.Table, {{$oTable.Name.GoLower}} q.Table) {
+func (zz{{$t.Name.Go}}) {{$method}}() (b *q.ZSelectBuilder, {{$relTable.Name.GoLower}} *zz{{$relTable.Name.Go}}Table, {{$oTable.Name.GoLower}} *zz{{$oTable.Name.Go}}Table) {
 	b, relTbl := zz{{$relTable.Name.Go}}{}.SelectBuilder()
-	oTbl := q.T({{$oTable.Name.SQLQuoted}})
+	oTbl := zz{{$oTable.Name.Go}}{}.T()
 	relTbl.InnerJoin(
 		oTbl,
-		{{range $_, $v := $m2m.OtherFK.Column}}q.Eq(relTbl.C({{$v.Self.Name.SQLQuoted}}), oTbl.C({{$v.Other.Name.SQLQuoted}})),
+		{{range $_, $v := $m2m.OtherFK.Column}}q.Eq(relTbl.{{$v.Self.Name.Go}}(), oTbl.{{$v.Other.Name.Go}}()),
 		{{end}}
 	)
 	zz{{$oTable.Name.Go}}{}.Columns(b, oTbl)
@@ -266,11 +273,11 @@ func (zz{{$t.Name.Go}}) {{$method}}() (b *q.ZSelectBuilder, {{$relTable.Name.GoL
 
 {{$method := "UpdateBuilder"}}
 {{if .OmitMethod $method}}/*{{end}}
-func (zz{{.Name.Go}}) {{$method}}(t *{{.Name.Go}}) (*q.ZUpdateBuilder, q.Table) {
-	tbl := q.T({{.Name.SQLQuoted}})
+func (zz{{.Name.Go}}) {{$method}}(t *{{.Name.Go}}) (*q.ZUpdateBuilder, *zz{{.Name.Go}}Table) {
+	tbl := zz{{.Name.Go}}{}.T()
 	return q.Update(tbl).
 		{{range $k, $v := .NonPrimaryKeys}}
-			Set(tbl.C({{$v.Name.SQLQuoted}}), t.{{$v.Name.Go}}).
+			Set(tbl.{{$v.Name.Go}}(), t.{{$v.Name.Go}}).
 		{{end}}
 		SetDialect(q.{{.Mode}}), tbl
 }
@@ -278,9 +285,19 @@ func (zz{{.Name.Go}}) {{$method}}(t *{{.Name.Go}}) (*q.ZUpdateBuilder, q.Table) 
 
 {{$method := "DeleteBuilder"}}
 {{if .OmitMethod $method}}/*{{end}}
-func (zz{{.Name.Go}}) {{$method}}() (*q.ZDeleteBuilder, q.Table) {
-	tbl := q.T({{.Name.SQLQuoted}})
+func (zz{{.Name.Go}}) {{$method}}() (*q.ZDeleteBuilder, *zz{{.Name.Go}}Table) {
+	tbl := zz{{.Name.Go}}{}.T()
 	return q.Delete().From(tbl).SetDialect(q.{{.Mode}}), tbl
 }
 {{if .OmitMethod $method}}*/{{end}}
+
+// zz{{.Name.Go}}Table represents {{.Name.Go}} table.
+type zz{{.Name.Go}}Table struct { q.Table }
+
+{{$t := .}}
+{{range $k, $v := .Column}}
+func (t zz{{$t.Name.Go}}Table) {{$v.Name.Go}}(aliasName ...string) q.Column {
+	return t.Table.C({{$v.Name.SQLQuoted}}, aliasName...)
+}
+{{end}}
 `

@@ -27,10 +27,10 @@ type Post struct {
 func GetPost(db sqruct.DB, id int64) (*Post, error) {
 	b, tbl := zzPost{}.SelectBuilder()
 	sql, args := b.Where(
-		q.Eq(tbl.C("id"), id),
+		q.Eq(tbl.ID(), id),
 	).ToSQL()
 	var t Post
-	err := db.QueryRow(sql, args...).Scan(zzPost{}.Pointers(&t))
+	err := db.QueryRow(sql, args...).Scan(zzPost{}.Pointers(&t)...)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func GetPost(db sqruct.DB, id int64) (*Post, error) {
 func (t *Post) GetAccount(db sqruct.DB) (*Account, error) {
 	b, tbl := zzAccount{}.SelectBuilder()
 	sql, args := b.Where(
-		q.Eq(tbl.C("id"), t.AccountID),
+		q.Eq(tbl.ID(), t.AccountID),
 	).ToSQL()
 	var ot Account
 	if err := db.QueryRow(sql, args...).Scan(zzAccount{}.Pointers(&ot)...); err != nil {
@@ -52,7 +52,7 @@ func (t *Post) GetAccount(db sqruct.DB) (*Account, error) {
 func (t *Post) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 	b, tbl := zzPostTag{}.SelectBuilder()
 	sql, args := b.Where(
-		q.Eq(tbl.C("postid"), t.ID),
+		q.Eq(tbl.PostID(), t.ID),
 	).ToSQL()
 	r, err := db.Query(sql, args...)
 	if err != nil {
@@ -77,7 +77,7 @@ func (t *Post) SelectPostTag(db sqruct.DB) ([]PostTag, error) {
 func (t *Post) SelectTag(db sqruct.DB) ([]Tag, []PostTag, error) {
 	b, relTbl, _ := zzPost{}.SelectBuilderForTag()
 	sql, args := b.Where(
-		q.Eq(relTbl.C("postid"), t.ID),
+		q.Eq(relTbl.PostID(), t.ID),
 	).ToSQL()
 	r, err := db.Query(sql, args...)
 	if err != nil {
@@ -104,7 +104,7 @@ func (t *Post) Insert(db sqruct.DB) error {
 
 	b, tbl := zzPost{}.InsertBuilder(t)
 	if !sqruct.IsZero(t.ID) {
-		sql, args := b.Set(tbl.C("id"), t.ID).ToSQL()
+		sql, args := b.Set(tbl.ID(), t.ID).ToSQL()
 		_, err := db.Exec(sql, args...)
 		return err
 	}
@@ -127,7 +127,7 @@ func (t *Post) Insert(db sqruct.DB) error {
 func (t *Post) Update(db sqruct.DB) error {
 	b, tbl := zzPost{}.UpdateBuilder(t)
 	sql, args := b.Where(
-		q.Eq(tbl.C("id"), t.ID),
+		q.Eq(tbl.ID(), t.ID),
 	).ToSQL()
 	_, err := db.Exec(sql, args...)
 	return err
@@ -136,7 +136,7 @@ func (t *Post) Update(db sqruct.DB) error {
 func (t *Post) Delete(db sqruct.DB) error {
 	b, tbl := zzPost{}.DeleteBuilder()
 	sql, args := b.Where(
-		q.Eq(tbl.C("id"), t.ID),
+		q.Eq(tbl.ID(), t.ID),
 	).ToSQL()
 	_, err := db.Exec(sql, args...)
 	return err
@@ -145,12 +145,16 @@ func (t *Post) Delete(db sqruct.DB) error {
 // zzPost represents Post table schema.
 type zzPost struct{}
 
-func (zzPost) Columns(b *q.ZSelectBuilder, t q.Table) {
+func (zzPost) T(aliasName ...string) *zzPostTable {
+	return &zzPostTable{q.T("post", aliasName...)}
+}
+
+func (zzPost) Columns(b *q.ZSelectBuilder, t *zzPostTable) {
 	b.Column(
-		t.C("id"),
-		t.C("accountid"),
-		t.C("at"),
-		t.C("message"),
+		t.ID(),
+		t.AccountID(),
+		t.At(),
+		t.Message(),
 	)
 }
 
@@ -158,43 +162,62 @@ func (zzPost) Pointers(t *Post) []interface{} {
 	return []interface{}{&t.ID, &t.AccountID, &t.At, &t.Message}
 }
 
-func (zzPost) InsertBuilder(t *Post) (*q.ZInsertBuilder, q.Table) {
-	tbl := q.T("post")
+func (zzPost) InsertBuilder(t *Post) (*q.ZInsertBuilder, *zzPostTable) {
+	tbl := zzPost{}.T()
 	return q.Insert().Into(tbl).
-		Set(tbl.C("accountid"), t.AccountID).
-		Set(tbl.C("at"), t.At).
-		Set(tbl.C("message"), t.Message).
+		Set(tbl.AccountID(), t.AccountID).
+		Set(tbl.At(), t.At).
+		Set(tbl.Message(), t.Message).
 		SetDialect(q.SQLite), tbl
 }
 
-func (zzPost) SelectBuilder() (*q.ZSelectBuilder, q.Table) {
-	tbl := q.T("post")
+func (zzPost) SelectBuilder() (*q.ZSelectBuilder, *zzPostTable) {
+	tbl := zzPost{}.T()
 	b := q.Select().From(tbl).SetDialect(q.SQLite)
 	zzPost{}.Columns(b, tbl)
 	return b, tbl
 }
 
-func (zzPost) SelectBuilderForTag() (b *q.ZSelectBuilder, postTag q.Table, tag q.Table) {
+func (zzPost) SelectBuilderForTag() (b *q.ZSelectBuilder, postTag *zzPostTagTable, tag *zzTagTable) {
 	b, relTbl := zzPostTag{}.SelectBuilder()
-	oTbl := q.T("tag")
+	oTbl := zzTag{}.T()
 	relTbl.InnerJoin(
 		oTbl,
-		q.Eq(relTbl.C("tagid"), oTbl.C("id")),
+		q.Eq(relTbl.TagID(), oTbl.ID()),
 	)
 	zzTag{}.Columns(b, oTbl)
 	return b, relTbl, oTbl
 }
 
-func (zzPost) UpdateBuilder(t *Post) (*q.ZUpdateBuilder, q.Table) {
-	tbl := q.T("post")
+func (zzPost) UpdateBuilder(t *Post) (*q.ZUpdateBuilder, *zzPostTable) {
+	tbl := zzPost{}.T()
 	return q.Update(tbl).
-		Set(tbl.C("accountid"), t.AccountID).
-		Set(tbl.C("at"), t.At).
-		Set(tbl.C("message"), t.Message).
+		Set(tbl.AccountID(), t.AccountID).
+		Set(tbl.At(), t.At).
+		Set(tbl.Message(), t.Message).
 		SetDialect(q.SQLite), tbl
 }
 
-func (zzPost) DeleteBuilder() (*q.ZDeleteBuilder, q.Table) {
-	tbl := q.T("post")
+func (zzPost) DeleteBuilder() (*q.ZDeleteBuilder, *zzPostTable) {
+	tbl := zzPost{}.T()
 	return q.Delete().From(tbl).SetDialect(q.SQLite), tbl
+}
+
+// zzPostTable represents Post table.
+type zzPostTable struct{ q.Table }
+
+func (t zzPostTable) ID(aliasName ...string) q.Column {
+	return t.Table.C("id", aliasName...)
+}
+
+func (t zzPostTable) AccountID(aliasName ...string) q.Column {
+	return t.Table.C("accountid", aliasName...)
+}
+
+func (t zzPostTable) At(aliasName ...string) q.Column {
+	return t.Table.C("at", aliasName...)
+}
+
+func (t zzPostTable) Message(aliasName ...string) q.Column {
+	return t.Table.C("message", aliasName...)
 }
